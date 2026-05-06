@@ -47,7 +47,11 @@ const AuthScreen = ({ onLogin }) => {
   const auth = getAuth();
   const isFirstTime = !auth;
 
-  const [step, setStep] = React.useState(isFirstTime ? "welcome" : "login");
+  // First time → direct password setup (no code needed)
+  // Returning user → login with password
+  // Forgot password → optionally use EmailJS code
+  const [step, setStep] = React.useState(isFirstTime ? "setup" : "login");
+
   const [password, setPassword] = React.useState("");
   const [password2, setPassword2] = React.useState("");
   const [code, setCode] = React.useState("");
@@ -64,7 +68,7 @@ const AuthScreen = ({ onLogin }) => {
     clearMessages();
     const cfg = getEjsConfig();
     if (!cfg.serviceId || !cfg.templateId || !cfg.publicKey) {
-      setError("Configura las credenciales de EmailJS primero.");
+      setError("Configura las credenciales de EmailJS primero (en el paso anterior).");
       return;
     }
     setLoading(true);
@@ -77,7 +81,7 @@ const AuthScreen = ({ onLogin }) => {
         { to_email: ADMIN_EMAIL, code: newCode, app_name: "PROMEZA CRM" },
         { publicKey: cfg.publicKey }
       );
-      setNotice("Código enviado. Revisa " + ADMIN_EMAIL);
+      setNotice("Código enviado a " + ADMIN_EMAIL);
     } catch (err) {
       setError("Error al enviar: " + (err?.text || err?.message || "Verifica las credenciales de EmailJS."));
       setGeneratedCode("");
@@ -85,10 +89,9 @@ const AuthScreen = ({ onLogin }) => {
     setLoading(false);
   };
 
+  // First-time setup: no email code needed, just create a password
   const doSetup = () => {
     clearMessages();
-    if (!generatedCode) { setError("Envía el código primero."); return; }
-    if (code.trim() !== generatedCode) { setError("Código incorrecto. Verifica el email."); return; }
     if (password.length < 6) { setError("La contraseña debe tener al menos 6 caracteres."); return; }
     if (password !== password2) { setError("Las contraseñas no coinciden."); return; }
     localStorage.setItem(AUTH_KEY, JSON.stringify({ email: ADMIN_EMAIL, passwordHash: hashPass(password) }));
@@ -117,23 +120,23 @@ const AuthScreen = ({ onLogin }) => {
     onLogin(stored ? stored.email : ADMIN_EMAIL);
   };
 
-  const saveEjs = () => {
-    localStorage.setItem(EJS_KEY, JSON.stringify(ejsCfg));
-    setNotice("Credenciales guardadas.");
-  };
-
-  const Field = ({ label, type = "text", value, onChange, placeholder, mono, hint }) => (
-    <div className="field" style={{ marginBottom: 12 }}>
+  const Field = ({ label, type = "text", value, onChange, placeholder, mono, autoFocus }) => (
+    <div className="field" style={{ marginBottom: 14 }}>
       <label>{label}</label>
       <input
         type={type}
         value={value || ""}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        style={mono ? { fontFamily: "var(--font-mono)", letterSpacing: ".05em" } : {}}
-        autoComplete={type === "password" ? "current-password" : "off"}
+        autoFocus={autoFocus}
+        style={mono ? { fontFamily: "var(--font-mono)", fontSize: 12 } : {}}
+        onKeyDown={e => {
+          if (e.key === "Enter") {
+            if (step === "login") doLogin();
+            if (step === "setup") doSetup();
+          }
+        }}
       />
-      {hint && <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3, lineHeight: 1.4 }}>{hint}</div>}
     </div>
   );
 
@@ -150,26 +153,88 @@ const AuthScreen = ({ onLogin }) => {
           </div>
         </div>
 
+        {/* ─── FIRST TIME SETUP ─── */}
+        {step === "setup" && (
+          <div>
+            <div className="auth-title">Crear tu contraseña</div>
+            <div className="auth-sub">
+              Primera vez en PROMEZA CRM. Crea una contraseña para acceder.
+            </div>
+            <div className="auth-email-badge">
+              <Icon name="mail" size={14} />
+              <span>Cuenta: <strong>{ADMIN_EMAIL}</strong></span>
+            </div>
+            <Field
+              label="Nueva contraseña"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              placeholder="Mínimo 6 caracteres"
+              autoFocus
+            />
+            <Field
+              label="Confirmar contraseña"
+              type="password"
+              value={password2}
+              onChange={setPassword2}
+              placeholder="Repite la contraseña"
+            />
+            {error && (
+              <div className="auth-error">
+                <Icon name="alert" size={14} /> {error}
+              </div>
+            )}
+            <button
+              className="btn btn-primary btn-block auth-submit"
+              onClick={doSetup}
+              style={{ marginTop: 4 }}
+            >
+              Crear contraseña y entrar
+            </button>
+          </div>
+        )}
+
         {/* ─── LOGIN ─── */}
         {step === "login" && (
           <div>
             <div className="auth-title">Bienvenido</div>
-            <div className="auth-sub">Ingresa tu contraseña para acceder</div>
+            <div className="auth-sub">Ingresa tu contraseña para acceder a PROMEZA CRM</div>
             <div className="auth-email-badge">
               <Icon name="mail" size={14} />
               <span>{ADMIN_EMAIL}</span>
             </div>
-            <Field label="Contraseña" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
-            {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
-            {notice && <div className="auth-notice"><Icon name="check" size={14} /> {notice}</div>}
-            <button className="btn btn-primary btn-block auth-submit"
-              onClick={doLogin} onKeyDown={e => e.key === "Enter" && doLogin()}>
+            <Field
+              label="Contraseña"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              placeholder="Tu contraseña"
+              autoFocus
+            />
+            {error && (
+              <div className="auth-error">
+                <Icon name="alert" size={14} /> {error}
+              </div>
+            )}
+            {notice && (
+              <div className="auth-notice">
+                <Icon name="check" size={14} /> {notice}
+              </div>
+            )}
+            <button
+              className="btn btn-primary btn-block auth-submit"
+              onClick={doLogin}
+              style={{ marginTop: 4 }}
+            >
               Ingresar
             </button>
 
             {!showForgot && (
-              <button className="btn btn-ghost btn-block" style={{ marginTop: 8 }}
-                onClick={() => { setShowForgot(true); clearMessages(); }}>
+              <button
+                className="btn btn-ghost btn-block"
+                style={{ marginTop: 8 }}
+                onClick={() => { setShowForgot(true); clearMessages(); }}
+              >
                 ¿Olvidaste tu contraseña?
               </button>
             )}
@@ -177,111 +242,97 @@ const AuthScreen = ({ onLogin }) => {
             {showForgot && (
               <div className="auth-box">
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Recuperar acceso</div>
-                <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginBottom: 10 }}>
-                  Se enviará un código a <strong>{ADMIN_EMAIL}</strong>
+                <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginBottom: 10, lineHeight: 1.5 }}>
+                  Para recuperar tu contraseña necesitas configurar EmailJS. Ve a Configuración → EmailJS, o contáctanos.
                 </div>
-                <button className="btn btn-sm btn-primary" onClick={() => { setStep("forgot-ejs"); setShowForgot(false); clearMessages(); }}>
-                  Continuar
-                </button>
-                <button className="btn btn-sm btn-ghost" style={{ marginLeft: 6 }}
-                  onClick={() => setShowForgot(false)}>Cancelar</button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-sm btn-primary"
+                    onClick={() => { setStep("forgot-ejs"); setShowForgot(false); clearMessages(); }}>
+                    Configurar EmailJS
+                  </button>
+                  <button className="btn btn-sm btn-ghost"
+                    onClick={() => setShowForgot(false)}>Cancelar</button>
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* ─── SETUP: Welcome ─── */}
-        {step === "welcome" && (
+        {/* ─── FORGOT: EmailJS config ─── */}
+        {step === "forgot-ejs" && (
           <div>
-            <div className="auth-title">Configurar acceso</div>
+            <div className="auth-title">Configurar EmailJS</div>
             <div className="auth-sub">
-              Primera vez en PROMEZA CRM. Crearás una contraseña para administrador.
-            </div>
-            <div className="auth-info-row">
-              <Icon name="mail" size={15} />
-              <span>El código de acceso se enviará a <strong>{ADMIN_EMAIL}</strong></span>
-            </div>
-            <div className="auth-info-row" style={{ marginTop: 6 }}>
-              <Icon name="lock" size={15} />
-              <span>Solo necesitas hacer esto <strong>una vez</strong></span>
-            </div>
-            <button className="btn btn-primary btn-block auth-submit" onClick={() => { clearMessages(); setStep("setup-ejs"); }}>
-              Comenzar configuración
-            </button>
-          </div>
-        )}
-
-        {/* ─── EJS CONFIG (setup + forgot) ─── */}
-        {(step === "setup-ejs" || step === "forgot-ejs") && (
-          <div>
-            <div className="auth-title">Configura EmailJS</div>
-            <div className="auth-sub">
-              Para enviar el código necesitas una cuenta gratuita en{" "}
+              Para recuperar tu contraseña necesitas una cuenta gratuita en{" "}
               <a href="https://www.emailjs.com/" target="_blank" rel="noopener">emailjs.com</a>
             </div>
             <div className="auth-hint-box">
-              <strong>Instrucciones:</strong>
-              <ol style={{ margin: "6px 0 0 14px", padding: 0, fontSize: 12, lineHeight: 1.7 }}>
-                <li>Crea una cuenta en <a href="https://www.emailjs.com/" target="_blank" rel="noopener">emailjs.com</a> (gratis)</li>
-                <li>Conecta un servicio de email (Gmail, Outlook, etc.)</li>
-                <li>Crea una plantilla de email con la variable <code style={{ background: "var(--accent-50)", padding: "0 4px", borderRadius: 3 }}>{"{{code}}"}</code> en el cuerpo</li>
-                <li>Copia los IDs en los campos de abajo</li>
+              <strong>Pasos:</strong>
+              <ol style={{ margin: "6px 0 0 14px", padding: 0, fontSize: 12, lineHeight: 1.8 }}>
+                <li>Crea una cuenta gratis en <a href="https://www.emailjs.com/" target="_blank" rel="noopener">emailjs.com</a></li>
+                <li>Conecta Gmail o Outlook</li>
+                <li>Crea plantilla con <code style={{ background: "var(--accent-50)", padding: "0 4px", borderRadius: 3 }}>{"{{code}}"}</code> en el cuerpo</li>
+                <li>Copia los 3 IDs abajo</li>
               </ol>
             </div>
-            <Field label="Service ID" value={ejsCfg.serviceId} onChange={v => setEjsCfg(c => ({ ...c, serviceId: v }))} placeholder="service_xxxxxxx" mono />
-            <Field label="Template ID" value={ejsCfg.templateId} onChange={v => setEjsCfg(c => ({ ...c, templateId: v }))} placeholder="template_xxxxxxx" mono />
-            <Field label="Public Key" value={ejsCfg.publicKey} onChange={v => setEjsCfg(c => ({ ...c, publicKey: v }))} placeholder="xxxxxxxxxxxxxxxxxxxx" mono />
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>Service ID</label>
+              <input type="text" value={ejsCfg.serviceId || ""} onChange={e => setEjsCfg(c => ({ ...c, serviceId: e.target.value }))} placeholder="service_xxxxxxx" style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>Template ID</label>
+              <input type="text" value={ejsCfg.templateId || ""} onChange={e => setEjsCfg(c => ({ ...c, templateId: e.target.value }))} placeholder="template_xxxxxxx" style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
+            </div>
+            <div className="field" style={{ marginBottom: 12 }}>
+              <label>Public Key</label>
+              <input type="text" value={ejsCfg.publicKey || ""} onChange={e => setEjsCfg(c => ({ ...c, publicKey: e.target.value }))} placeholder="xxxxxxxxxxxxxxxxxxxx" style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
+            </div>
             {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
             {notice && <div className="auth-notice"><Icon name="check" size={14} /> {notice}</div>}
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-              <button className="btn btn-ghost" onClick={saveEjs}>Guardar credenciales</button>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setStep("login")}>← Volver</button>
               <button className="btn btn-primary" style={{ flex: 1 }}
-                onClick={() => { saveEjs(); setStep(step === "setup-ejs" ? "setup-send" : "forgot-send"); clearMessages(); }}>
+                onClick={() => {
+                  localStorage.setItem(EJS_KEY, JSON.stringify(ejsCfg));
+                  setStep("forgot-send");
+                  clearMessages();
+                }}>
                 Continuar →
               </button>
             </div>
-            <button className="btn btn-ghost btn-block" style={{ marginTop: 6 }}
-              onClick={() => setStep(step === "setup-ejs" ? "welcome" : "login")}>
-              ← Volver
-            </button>
           </div>
         )}
 
-        {/* ─── SEND CODE ─── */}
-        {(step === "setup-send" || step === "forgot-send") && (
+        {/* ─── FORGOT: Send code ─── */}
+        {step === "forgot-send" && (
           <div>
-            <div className="auth-title">Enviar código de acceso</div>
-            <div className="auth-sub">Haz clic para enviar el código de 6 dígitos a:</div>
+            <div className="auth-title">Enviar código</div>
+            <div className="auth-sub">Se enviará un código de 6 dígitos a:</div>
             <div className="auth-email-badge" style={{ marginBottom: 16 }}>
               <Icon name="mail" size={14} />
               <span><strong>{ADMIN_EMAIL}</strong></span>
             </div>
             {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
             {notice && <div className="auth-notice"><Icon name="check" size={14} /> {notice}</div>}
-            {!generatedCode && (
+            {!generatedCode ? (
               <button className="btn btn-primary btn-block auth-submit" disabled={loading} onClick={sendCode}>
                 {loading ? "Enviando…" : "Enviar código ahora"}
               </button>
-            )}
-            {generatedCode && (
+            ) : (
               <button className="btn btn-primary btn-block auth-submit"
-                onClick={() => { clearMessages(); setStep(step === "setup-send" ? "setup-code" : "forgot-code"); }}>
-                Ingresar el código recibido →
+                onClick={() => { clearMessages(); setStep("forgot-code"); }}>
+                Ingresar código recibido →
               </button>
             )}
             <button className="btn btn-ghost btn-block" style={{ marginTop: 6 }}
-              onClick={() => setStep(step === "setup-send" ? "setup-ejs" : "forgot-ejs")}>
-              ← Volver
-            </button>
+              onClick={() => setStep("forgot-ejs")}>← Volver</button>
           </div>
         )}
 
-        {/* ─── ENTER CODE + SET PASSWORD ─── */}
-        {(step === "setup-code" || step === "forgot-code") && (
+        {/* ─── FORGOT: Enter code + new password ─── */}
+        {step === "forgot-code" && (
           <div>
-            <div className="auth-title">
-              {step === "setup-code" ? "Verificar y crear contraseña" : "Verificar y cambiar contraseña"}
-            </div>
+            <div className="auth-title">Nueva contraseña</div>
             <div className="auth-sub">Ingresa el código recibido en {ADMIN_EMAIL}</div>
             <div className="field" style={{ marginBottom: 16 }}>
               <label>Código de 6 dígitos</label>
@@ -297,10 +348,8 @@ const AuthScreen = ({ onLogin }) => {
             <Field label="Nueva contraseña" type="password" value={password} onChange={setPassword} placeholder="Mínimo 6 caracteres" />
             <Field label="Confirmar contraseña" type="password" value={password2} onChange={setPassword2} placeholder="Repite la contraseña" />
             {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
-            {notice && <div className="auth-notice"><Icon name="check" size={14} /> {notice}</div>}
-            <button className="btn btn-primary btn-block auth-submit"
-              onClick={step === "setup-code" ? doSetup : doReset}>
-              {step === "setup-code" ? "Crear acceso y entrar" : "Cambiar contraseña y entrar"}
+            <button className="btn btn-primary btn-block auth-submit" onClick={doReset}>
+              Cambiar contraseña y entrar
             </button>
             <button className="btn btn-ghost btn-block" style={{ marginTop: 8 }} disabled={loading} onClick={sendCode}>
               {loading ? "Enviando…" : "Reenviar código"}
