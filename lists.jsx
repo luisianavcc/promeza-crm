@@ -1,10 +1,264 @@
-// PROMEZA CRM — Personas list + Entities list (with CSV export)
+// PROMEZA CRM — Personas list + Entities list (with CSV export + import)
 
-const PersonasList = ({ t, lang, data, go }) => {
+// ─── CSV parser (handles quoted fields) ───
+const parseCSV = (text) => {
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const parse = (line) => {
+    const cols = [];
+    let cur = "", inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"' && !inQ) { inQ = true; }
+      else if (c === '"' && inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"' && inQ) { inQ = false; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
+      else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  };
+  const headers = parse(lines[0]).map(h => h.toLowerCase().trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parse(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = vals[idx] || ""; });
+    rows.push(obj);
+  }
+  return { headers, rows };
+};
+
+// ─── Parse file to rows (CSV or XLSX) ───
+const parseFile = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (ext === "csv") {
+    reader.onload = (e) => {
+      try { resolve(parseCSV(e.target.result)); }
+      catch (err) { reject(err); }
+    };
+    reader.readAsText(file, "UTF-8");
+  } else if (ext === "xlsx" || ext === "xls") {
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        if (!raw.length) return resolve({ headers: [], rows: [] });
+        const headers = raw[0].map(h => String(h).toLowerCase().trim());
+        const rows = raw.slice(1).map(r => {
+          const obj = {};
+          headers.forEach((h, i) => { obj[h] = String(r[i] || ""); });
+          return obj;
+        });
+        resolve({ headers, rows });
+      } catch (err) { reject(err); }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    reject(new Error("Formato no soportado. Usa .csv, .xlsx o .xls"));
+  }
+});
+
+// ─── Column matcher ───
+const findCol = (rowObj, aliases) => {
+  const keys = Object.keys(rowObj);
+  for (const alias of aliases) {
+    const match = keys.find(k => k === alias || k.replace(/[^a-z0-9]/g, "") === alias.replace(/[^a-z0-9]/g, ""));
+    if (match !== undefined) return rowObj[match] || "";
+  }
+  return "";
+};
+
+// ─── Import Modal ───
+const ImportModal = ({ type, lang, onClose, onImport }) => {
+  const [dragging, setDragging] = React.useState(false);
+  const [preview, setPreview] = React.useState(null);
+  const [error, setError] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const inputRef = React.useRef();
+
+  const isPersona = type === "personas";
+
+  const mapPersonaRow = (row, idx, totalExisting) => {
+    const first = findCol(row, ["nombre", "first", "first name", "given name"]);
+    const last = findCol(row, ["apellido", "last", "last name", "surname"]);
+    if (!first && !last) return null;
+    const palette = ["#2F6BFF", "#0E7C66", "#B45309", "#7C3AED", "#BE185D", "#0369A1", "#15803D"];
+    const color = palette[((first.charCodeAt(0) || 0)) % palette.length];
+    const ig = findCol(row, ["instagram"]);
+    const fb = findCol(row, ["facebook"]);
+    const tiktok = findCol(row, ["tiktok"]);
+    const x = findCol(row, ["x", "twitter", "x (twitter)"]);
+    const tagsRaw = findCol(row, ["etiquetas", "tags", "labels"]);
+    return {
+      id: "p" + (totalExisting + idx + 1),
+      first,
+      last,
+      role: findCol(row, ["cargo", "role", "puesto", "title", "position"]) || "otro",
+      roleOther: "",
+      email: findCol(row, ["email", "correo"]),
+      phone: findCol(row, ["teléfono", "telefono", "phone", "celular", "móvil", "movil"]),
+      address: findCol(row, ["dirección", "direccion", "address"]),
+      zip: findCol(row, ["zip", "código postal", "codigo postal"]),
+      city: findCol(row, ["ciudad", "city"]),
+      state: findCol(row, ["estado/provincia", "state", "provincia"]),
+      country: findCol(row, ["país", "pais", "country"]),
+      lat: 0, lng: 0,
+      website: findCol(row, ["sitio web", "web", "website"]),
+      social: { ig, fb, tiktok, x },
+      entities: [],
+      tags: tagsRaw ? tagsRaw.split(/[,;|]/).map(s => s.trim()).filter(Boolean) : [],
+      language: findCol(row, ["idioma", "language"]) || "es",
+      status: findCol(row, ["estado", "status"]) || "activo",
+      birthday: findCol(row, ["cumpleaños", "cumpleanios", "birthday"]),
+      lastContact: findCol(row, ["último contacto", "ultimo contacto", "last contact"]),
+      color,
+    };
+  };
+
+  const mapEntityRow = (row, idx, totalExisting) => {
+    const name = findCol(row, ["nombre", "name", "entidad"]);
+    if (!name) return null;
+    const ig = findCol(row, ["instagram"]);
+    const fb = findCol(row, ["facebook"]);
+    const tiktok = findCol(row, ["tiktok"]);
+    const x = findCol(row, ["x", "twitter", "x (twitter)"]);
+    const tagsRaw = findCol(row, ["etiquetas", "tags"]);
+    const sizeRaw = findCol(row, ["tamaño", "tamano", "size", "miembros"]);
+    return {
+      id: "e" + (totalExisting + idx + 1),
+      name,
+      type: findCol(row, ["tipo", "type"]) || "ong",
+      email: findCol(row, ["email", "correo"]),
+      phone: findCol(row, ["teléfono", "telefono", "phone"]),
+      address: findCol(row, ["dirección", "direccion", "address"]),
+      zip: findCol(row, ["zip", "código postal"]),
+      city: findCol(row, ["ciudad", "city"]),
+      state: findCol(row, ["estado/provincia", "state", "provincia"]),
+      country: findCol(row, ["país", "pais", "country"]),
+      lat: 0, lng: 0,
+      website: findCol(row, ["sitio web", "web", "website"]),
+      social: { ig, fb, tiktok, x },
+      size: sizeRaw ? parseInt(sizeRaw) || null : null,
+      founded: findCol(row, ["año fundación", "ano fundacion", "founded", "fundacion"]),
+      parent: null,
+      tags: tagsRaw ? tagsRaw.split(/[,;|]/).map(s => s.trim()).filter(Boolean) : [],
+    };
+  };
+
+  const handleFile = async (file) => {
+    setError("");
+    setPreview(null);
+    setLoading(true);
+    try {
+      const { rows } = await parseFile(file);
+      const mapped = rows
+        .map((r, i) => isPersona ? mapPersonaRow(r, i, 0) : mapEntityRow(r, i, 0))
+        .filter(Boolean);
+      if (!mapped.length) throw new Error("No se encontraron registros válidos. Revisa que el archivo tenga columnas Nombre/Apellido.");
+      setPreview({ file, rows: mapped });
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
+
+  const confirm = () => {
+    if (preview) onImport(preview.rows);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  };
+
+  const label = isPersona ? "Personas" : "Entidades";
+
+  return (
+    <div className="modal-veil" onClick={onClose}>
+      <div className="modal" style={{ width: "min(520px,100%)" }} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div style={{ fontWeight: 600, fontSize: 16 }}>
+            <Icon name="upload" /> Importar {label}
+          </div>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" /></button>
+        </div>
+        <div className="modal-body">
+          <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-100)", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.6 }}>
+            <strong>Columnas reconocidas automáticamente:</strong><br />
+            {isPersona
+              ? "Nombre, Apellido, Cargo, Email, Teléfono, Dirección, ZIP, Ciudad, País, Instagram, Facebook, TikTok, X, Etiquetas, Idioma, Estado, Cumpleaños"
+              : "Nombre, Tipo, Email, Teléfono, Dirección, ZIP, Ciudad, País, Instagram, Facebook, Sitio web, Tamaño, Año fundación, Etiquetas"
+            }
+          </div>
+
+          <div
+            onClick={() => inputRef.current && inputRef.current.click()}
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            style={{
+              border: "2px dashed " + (dragging ? "var(--accent)" : "var(--line)"),
+              borderRadius: 10, padding: "32px 20px", textAlign: "center",
+              cursor: "pointer", background: dragging ? "var(--accent-50)" : "var(--bg-soft)",
+              transition: "all .15s",
+            }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>📂</div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>
+              {loading ? "Procesando…" : "Arrastra tu archivo aquí"}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--ink-3)" }}>o haz clic para seleccionar · CSV, XLSX o XLS</div>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              style={{ display: "none" }}
+              onChange={e => e.target.files[0] && handleFile(e.target.files[0])}
+            />
+          </div>
+
+          {error && (
+            <div className="auth-error" style={{ marginTop: 12 }}>
+              <Icon name="alert" size={14} /> {error}
+            </div>
+          )}
+
+          {preview && (
+            <div style={{ marginTop: 14, padding: "12px 14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8 }}>
+              <div style={{ fontWeight: 600, color: "#166534", marginBottom: 6 }}>
+                ✓ {preview.rows.length} {label.toLowerCase()} listas para importar
+              </div>
+              <div style={{ fontSize: 12, color: "#166534" }}>
+                Archivo: <strong>{preview.file.name}</strong>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 12, color: "var(--ink-3)" }}>
+                Primeros registros: {preview.rows.slice(0, 3).map(r => isPersona ? (r.first + " " + r.last) : r.name).join(" · ")}
+                {preview.rows.length > 3 && " ···"}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!preview} onClick={confirm}>
+            <Icon name="check" /> Importar {preview ? preview.rows.length : ""} {label.toLowerCase()}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
   const [role, setRole] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
   const [q, setQ] = React.useState("");
+  const [showImport, setShowImport] = React.useState(false);
 
   const countries = ["all", ...new Set(data.personas.map(p => p.country))];
   const roles = ["all", ...Object.keys(t.roles)];
@@ -86,11 +340,27 @@ const PersonasList = ({ t, lang, data, go }) => {
           <button className="btn" onClick={doExportCSV}>
             <Icon name="download" /> {t.common.exportCSV}
           </button>
+          <button className="btn" onClick={() => setShowImport(true)}>
+            <Icon name="upload" /> Importar
+          </button>
           <button className="btn btn-primary" onClick={() => go({ name: "new-person" })}>
             <Icon name="plus" /> {t.nav.newPerson}
           </button>
         </div>
       </div>
+
+      {showImport && (
+        <ImportModal
+          type="personas"
+          lang={lang}
+          onClose={() => setShowImport(false)}
+          onImport={(rows) => {
+            const withIds = rows.map((r, i) => ({ ...r, id: "p" + (data.personas.length + i + 1) }));
+            onImportPersonas(withIds);
+            setShowImport(false);
+          }}
+        />
+      )}
 
       <div className="card">
         <div className="filters">
@@ -185,10 +455,11 @@ const PersonasList = ({ t, lang, data, go }) => {
   );
 };
 
-const EntitiesList = ({ t, lang, data, go }) => {
+const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
   const [type, setType] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [q, setQ] = React.useState("");
+  const [showImport, setShowImport] = React.useState(false);
 
   const types = ["all", ...Object.keys(t.types)];
   const countries = ["all", ...new Set(data.entities.map(e => e.country))];
@@ -266,11 +537,27 @@ const EntitiesList = ({ t, lang, data, go }) => {
           <button className="btn" onClick={doExportCSV}>
             <Icon name="download" /> {t.common.exportCSV}
           </button>
+          <button className="btn" onClick={() => setShowImport(true)}>
+            <Icon name="upload" /> Importar
+          </button>
           <button className="btn btn-primary" onClick={() => go({ name: "new-entity" })}>
             <Icon name="plus" /> {t.nav.newEntity}
           </button>
         </div>
       </div>
+
+      {showImport && (
+        <ImportModal
+          type="entidades"
+          lang={lang}
+          onClose={() => setShowImport(false)}
+          onImport={(rows) => {
+            const withIds = rows.map((r, i) => ({ ...r, id: "e" + (data.entities.length + i + 1) }));
+            onImportEntities(withIds);
+            setShowImport(false);
+          }}
+        />
+      )}
 
       <div className="card">
         <div className="filters">

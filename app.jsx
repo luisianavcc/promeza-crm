@@ -100,8 +100,8 @@ const SettingsModal = ({ t, lang, data, onClose, onLogout }) => {
               <Field label={st.pat || "Personal Access Token"} value={atCfg.pat} onChange={v => setAtCfg(c => ({ ...c, pat: v }))} placeholder="patxxxxxxxxxxxxxxxx" mono />
               <Field label={st.baseId || "Base ID"} value={atCfg.baseId} onChange={v => setAtCfg(c => ({ ...c, baseId: v }))} placeholder="appxxxxxxxxxxxxxxxx" mono />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <Field label={st.personasTable || "Tabla Personas"} value={atCfg.personasTable || "Personas"} onChange={v => setAtCfg(c => ({ ...c, personasTable: v }))} placeholder="Personas" />
-                <Field label={st.entidadesTable || "Tabla Entidades"} value={atCfg.entidadesTable || "Entidades"} onChange={v => setAtCfg(c => ({ ...c, entidadesTable: v }))} placeholder="Entidades" />
+                <Field label={st.personasTable || "Tabla Personas"} value={atCfg.personasTable || "PERSONAS PROMEZA CRM"} onChange={v => setAtCfg(c => ({ ...c, personasTable: v }))} placeholder="PERSONAS PROMEZA CRM" />
+                <Field label={st.entidadesTable || "Tabla Entidades"} value={atCfg.entidadesTable || "ENTIDADES PROMEZA CRM"} onChange={v => setAtCfg(c => ({ ...c, entidadesTable: v }))} placeholder="ENTIDADES PROMEZA CRM" />
               </div>
               <div style={{ background: "var(--bg-soft)", borderRadius: 8, padding: "10px 14px", marginTop: 4, fontSize: 12, color: "var(--ink-3)" }}>
                 {st.lastSync || "Última sync:"} <strong>{lastSyncFmt}</strong>
@@ -263,6 +263,14 @@ const App = () => {
     setRoute({ name: "entity", id });
   };
 
+  const handleImportPersonas = (imported) => {
+    setData(d => ({ ...d, personas: [...imported, ...d.personas] }));
+  };
+
+  const handleImportEntities = (imported) => {
+    setData(d => ({ ...d, entities: [...imported, ...d.entities] }));
+  };
+
   // Not ready yet
   if (!authChecked) return null;
 
@@ -274,8 +282,8 @@ const App = () => {
   let view;
   switch (route.name) {
     case "home": view = <Home t={t} lang={lang} data={data} go={go} />; break;
-    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} />; break;
-    case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} />; break;
+    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} />; break;
+    case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} onImportEntities={handleImportEntities} />; break;
     case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} />; break;
     case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
