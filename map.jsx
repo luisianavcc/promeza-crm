@@ -40,7 +40,7 @@ const MiniMap = ({ personas = [], entities = [], focus = null, go = null }) => {
     const points = [];
 
     entities.forEach(e => {
-      if (e.lat == null) return;
+      if (!e.lat && !e.lng) return;
       const ic = L.divIcon({
         html: '<div class="map-marker entity"></div>',
         className: "", iconSize: [20, 20], iconAnchor: [10, 10],
@@ -51,7 +51,7 @@ const MiniMap = ({ personas = [], entities = [], focus = null, go = null }) => {
       points.push([e.lat, e.lng]);
     });
     personas.forEach(p => {
-      if (p.lat == null) return;
+      if (!p.lat && !p.lng) return;
       const ic = L.divIcon({
         html: '<div class="map-marker" style="background:' + p.color + '"></div>',
         className: "", iconSize: [16, 16], iconAnchor: [8, 8],

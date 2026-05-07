@@ -68,7 +68,7 @@ const Comments = ({ items, t, lang, onAdd }) => {
 
 // ─── PERSON PROFILE ───
 
-const PersonProfile = ({ id, t, lang, data, go, addComment }) => {
+const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson }) => {
   const p = data.personas.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
   if (!p) return <div className="empty">Not found</div>;
@@ -107,7 +107,12 @@ const PersonProfile = ({ id, t, lang, data, go, addComment }) => {
         <div className="actions">
           <button className="btn" onClick={() => window.location.href = "mailto:" + p.email}><Icon name="mail" /> Email</button>
           <button className="btn" onClick={() => window.location.href = "tel:" + p.phone}><Icon name="phone" /></button>
-          <button className="btn"><Icon name="edit" /> {t.common.edit}</button>
+          <button className="btn"
+            style={p.status !== "inactivo" ? { color: "var(--bad)", borderColor: "var(--bad)" } : { color: "var(--good)", borderColor: "var(--good)" }}
+            onClick={() => onUpdatePerson && onUpdatePerson(p.id, { status: p.status === "inactivo" ? "activo" : "inactivo" })}>
+            <Icon name={p.status === "inactivo" ? "check" : "x"} />
+            {p.status === "inactivo" ? (lang === "es" ? "Reactivar" : "Reactivate") : (lang === "es" ? "Inactivar" : "Deactivate")}
+          </button>
         </div>
       </div>
 
@@ -229,7 +234,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment }) => {
 
 // ─── ENTITY PROFILE ───
 
-const EntityProfile = ({ id, t, lang, data, go, addComment }) => {
+const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity }) => {
   const e = data.entities.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
   if (!e) return <div className="empty">Not found</div>;
@@ -262,6 +267,7 @@ const EntityProfile = ({ id, t, lang, data, go, addComment }) => {
           <h1 className="name">{e.name}</h1>
           <div className="sub">
             <span className="role-pill">{t.types[e.type]}</span>
+            <span><span className={"status-dot " + ((e.status || "activo") === "inactivo" ? "off" : "")} />{t.common[(e.status || "activo") === "inactivo" ? "inactivos" : "activos"]}</span>
             <span><Icon name="pin" /> {e.city}, {e.country}</span>
             <span><Icon name="users" /> {linkedPeople.length} {t.common.relatedPersonas.toLowerCase()}</span>
             {e.size && <span>{e.size.toLocaleString()} {t.common.members}</span>}
@@ -272,7 +278,12 @@ const EntityProfile = ({ id, t, lang, data, go, addComment }) => {
         <div className="actions">
           <button className="btn" onClick={() => window.location.href = "mailto:" + e.email}><Icon name="mail" /> Email</button>
           {e.website && <button className="btn" onClick={() => window.open("https://" + e.website, "_blank")}><Icon name="globe" /> Web</button>}
-          <button className="btn"><Icon name="edit" /> {t.common.edit}</button>
+          <button className="btn"
+            style={(e.status || "activo") !== "inactivo" ? { color: "var(--bad)", borderColor: "var(--bad)" } : { color: "var(--good)", borderColor: "var(--good)" }}
+            onClick={() => onUpdateEntity && onUpdateEntity(e.id, { status: (e.status || "activo") === "inactivo" ? "activo" : "inactivo" })}>
+            <Icon name={(e.status || "activo") === "inactivo" ? "check" : "x"} />
+            {(e.status || "activo") === "inactivo" ? (lang === "es" ? "Reactivar" : "Reactivate") : (lang === "es" ? "Inactivar" : "Deactivate")}
+          </button>
         </div>
       </div>
 

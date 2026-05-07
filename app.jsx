@@ -256,7 +256,7 @@ const App = () => {
       website: form.website, social: form.social,
       size: form.size ? parseInt(form.size) : null,
       founded: form.founded, parent: form.parent || null,
-      tags,
+      tags, status: "activo",
     };
     setData(d => ({ ...d, entities: [newE, ...d.entities] }));
     setModal(null);
@@ -269,6 +269,14 @@ const App = () => {
 
   const handleImportEntities = (imported) => {
     setData(d => ({ ...d, entities: [...imported, ...d.entities] }));
+  };
+
+  const handleUpdatePerson = (id, updates) => {
+    setData(d => ({ ...d, personas: d.personas.map(p => p.id === id ? { ...p, ...updates } : p) }));
+  };
+
+  const handleUpdateEntity = (id, updates) => {
+    setData(d => ({ ...d, entities: d.entities.map(e => e.id === id ? { ...e, ...updates } : e) }));
   };
 
   // Not ready yet
@@ -284,8 +292,8 @@ const App = () => {
     case "home": view = <Home t={t} lang={lang} data={data} go={go} />; break;
     case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} />; break;
     case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} onImportEntities={handleImportEntities} />; break;
-    case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} />; break;
-    case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} />; break;
+    case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdatePerson={handleUpdatePerson} />; break;
+    case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;
   }

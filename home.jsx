@@ -115,7 +115,7 @@ const Home = ({ t, lang, data, go }) => {
           <div className="card-pad">
             <Bars
               rows={typeRows.map(([k, v]) => ({ label: t.types[k] || k, value: v }))}
-              max={Math.max(...typeRows.map(r => r[1]))}
+              max={Math.max(1, ...typeRows.map(r => r[1]))}
             />
           </div>
         </div>
@@ -127,7 +127,7 @@ const Home = ({ t, lang, data, go }) => {
           <div className="card-pad">
             <Bars
               rows={roleRows.map(([k, v]) => ({ label: t.roles[k] || k, value: v }))}
-              max={Math.max(...roleRows.map(r => r[1]))}
+              max={Math.max(1, ...roleRows.map(r => r[1]))}
             />
           </div>
         </div>

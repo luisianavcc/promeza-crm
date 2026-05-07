@@ -337,8 +337,8 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
           <div className="page-sub">{rows.length} {t.common.count.toLowerCase()}</div>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={doExportCSV}>
-            <Icon name="download" /> {t.common.exportCSV}
+          <button className="btn" onClick={doExportCSV} title={lang === "es" ? `Exportar ${rows.length} de ${data.personas.length} personas` : `Export ${rows.length} of ${data.personas.length} people`}>
+            <Icon name="download" /> {t.common.exportCSV}{rows.length < data.personas.length ? ` (${rows.length})` : ""}
           </button>
           <button className="btn" onClick={() => setShowImport(true)}>
             <Icon name="upload" /> Importar
@@ -458,6 +458,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
 const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
   const [type, setType] = React.useState("all");
   const [country, setCountry] = React.useState("all");
+  const [status, setStatus] = React.useState("all");
   const [q, setQ] = React.useState("");
   const [showImport, setShowImport] = React.useState(false);
 
@@ -472,6 +473,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
   const rows = data.entities.filter(e => {
     if (type !== "all" && e.type !== type) return false;
     if (country !== "all" && e.country !== country) return false;
+    if (status !== "all" && (e.status || "activo") !== status) return false;
     if (q) {
       const s = (e.name + " " + e.city + " " + e.country).toLowerCase();
       if (!s.includes(q.toLowerCase())) return false;
@@ -534,8 +536,8 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
           <div className="page-sub">{rows.length} {t.common.count.toLowerCase()}</div>
         </div>
         <div className="page-actions">
-          <button className="btn" onClick={doExportCSV}>
-            <Icon name="download" /> {t.common.exportCSV}
+          <button className="btn" onClick={doExportCSV} title={lang === "es" ? `Exportar ${rows.length} de ${data.entities.length} entidades` : `Export ${rows.length} of ${data.entities.length} entities`}>
+            <Icon name="download" /> {t.common.exportCSV}{rows.length < data.entities.length ? ` (${rows.length})` : ""}
           </button>
           <button className="btn" onClick={() => setShowImport(true)}>
             <Icon name="upload" /> Importar
@@ -574,6 +576,14 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
               </button>
             ))}
           </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <span className="muted" style={{ fontSize: 12, fontWeight: 600, marginRight: 4 }}>{t.common.status}:</span>
+            {["all", "activo", "inactivo"].map(s => (
+              <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>
+                {s === "all" ? t.common.all : t.common[s === "activo" ? "activos" : "inactivos"]}
+              </button>
+            ))}
+          </div>
           <div style={{ marginLeft: "auto" }}>
             <select value={country} onChange={e => setCountry(e.target.value)}
               style={{ height: 32, padding: "0 10px", border: "1px solid var(--line)", borderRadius: 8, background: "#fff", fontSize: 13 }}>
@@ -602,7 +612,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
                     <div className="ent-icon"><Icon name="building" /></div>
                     <div>
                       <div style={{ fontWeight: 600 }}>{e.name}</div>
-                      <div className="num">{e.id.toUpperCase()} · {e.founded}</div>
+                      <div className="num">{e.id.toUpperCase()} · <span className={"status-dot " + ((e.status || "activo") === "inactivo" ? "off" : "")} />{t.common[(e.status || "activo") === "inactivo" ? "inactivos" : "activos"]}</div>
                     </div>
                   </div>
                 </td>
