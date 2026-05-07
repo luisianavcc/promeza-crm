@@ -41,6 +41,19 @@ const Sidebar = ({ route, go, t, counts }) => {
           <span>{t.nav.newEntity}</span>
         </div>
       </div>
+      <div className="nav-group">
+        <div className="nav-label">Calidad</div>
+        <div
+          className={"nav-item " + (route.name === "duplicates" ? "active" : "")}
+          onClick={() => go({ name: "duplicates" })}
+        >
+          <span className="dot"><Icon name="copy" /></span>
+          <span>Duplicados</span>
+          {counts.dups > 0 && (
+            <span className="badge" style={{ background: "#f59e0b", color: "#fff" }}>{counts.dups}</span>
+          )}
+        </div>
+      </div>
       <div className="side-cta">
         <div style={{ fontSize: 11, color: "var(--ink-3)", padding: "0 4px 4px" }}>
           v1.0 · {new Date().toLocaleDateString()}

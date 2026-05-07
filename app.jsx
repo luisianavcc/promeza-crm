@@ -200,7 +200,6 @@ const App = () => {
   const [editingId, setEditingId] = useState(null);
   const [modalPrefill, setModalPrefill] = useState(null);
   const [dupPairs, setDupPairs] = useState([]);
-  const [showDups, setShowDups] = useState(false);
 
   const [data, setData] = useState(() => {
     try {
@@ -225,7 +224,7 @@ const App = () => {
     window.scrollTo({ top: 0 });
   };
 
-  const counts = { personas: data.personas.length, entities: data.entities.length };
+  const counts = { personas: data.personas.length, entities: data.entities.length, dups: dupPairs.filter(p => !p.dismissed).length };
 
   const addComment = (targetId, text) => {
     setData(d => {
@@ -257,7 +256,9 @@ const App = () => {
     setData(d => {
       const next = { ...d, personas: [newP, ...d.personas] };
       const pairs = findDuplicatePairs(next.personas, dupPairs);
-      if (pairs.length > 0) { setDupPairs(prev => { const existing = new Set(prev.map(p => p.idA+"|"+p.idB)); return [...prev, ...pairs.filter(p => !existing.has(p.idA+"|"+p.idB))]; }); setShowDups(true); }
+      if (pairs.length > 0) {
+        setDupPairs(prev => { const existing = new Set(prev.map(p => p.idA+"|"+p.idB)); return [...prev, ...pairs.filter(p => !existing.has(p.idA+"|"+p.idB))]; });
+      }
       return next;
     });
     setModal(null);
@@ -286,7 +287,11 @@ const App = () => {
     setData(d => {
       const next = { ...d, personas: [...imported, ...d.personas] };
       const pairs = findDuplicatePairs(next.personas, dupPairs);
-      if (pairs.length > 0) { setDupPairs(prev => { const existing = new Set(prev.map(p => p.idA+"|"+p.idB)); return [...prev, ...pairs.filter(p => !existing.has(p.idA+"|"+p.idB))]; }); setShowDups(true); }
+      if (pairs.length > 0) {
+        setDupPairs(prev => { const existing = new Set(prev.map(p => p.idA+"|"+p.idB)); return [...prev, ...pairs.filter(p => !existing.has(p.idA+"|"+p.idB))]; });
+        setRoute({ name: "duplicates" });
+        window.scrollTo({ top: 0 });
+      }
       return next;
     });
   };
@@ -383,6 +388,47 @@ const App = () => {
     ));
   };
 
+  const handleUndismissDup = (pair) => {
+    setDupPairs(ps => ps.map(p =>
+      p.idA === pair.idA && p.idB === pair.idB ? { ...p, dismissed: false } : p
+    ));
+  };
+
+  const handleScanAll = () => {
+    const pairs = findDuplicatePairs(data.personas, dupPairs);
+    if (pairs.length > 0) {
+      setDupPairs(prev => {
+        const existing = new Set(prev.map(p => p.idA + "|" + p.idB));
+        return [...prev, ...pairs.filter(p => !existing.has(p.idA + "|" + p.idB))];
+      });
+    }
+    setRoute({ name: "duplicates" });
+    window.scrollTo({ top: 0 });
+  };
+
+  const handleCreateDemo = () => {
+    const source = data.personas[0];
+    if (!source) return;
+    const demoId = "demo-" + Date.now();
+    const demo = {
+      ...source, id: demoId,
+      last: source.last + " (copia)",
+      city: source.city,
+      status: "activo",
+    };
+    setData(d => {
+      const next = { ...d, personas: [demo, ...d.personas] };
+      const pairs = findDuplicatePairs(next.personas, dupPairs);
+      if (pairs.length > 0) {
+        setDupPairs(prev => {
+          const existing = new Set(prev.map(p => p.idA + "|" + p.idB));
+          return [...prev, ...pairs.filter(p => !existing.has(p.idA + "|" + p.idB))];
+        });
+      }
+      return next;
+    });
+  };
+
   // Not ready yet
   if (!authChecked) return null;
 
@@ -399,6 +445,7 @@ const App = () => {
     case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdatePerson={handleUpdatePerson} onEditPerson={handleEditPerson} onDeletePerson={handleDeletePerson} />; break;
     case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
+    case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;
   }
 
@@ -412,20 +459,7 @@ const App = () => {
         onSettings={() => setModal("settings")}
         userEmail={userEmail}
       />
-      <main className="main">
-        {dupPairs.filter(p => !p.dismissed).length > 0 && !showDups && (
-          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
-            <span style={{ fontSize: 16 }}>⚠</span>
-            <span style={{ flex: 1, color: "#92400e" }}>
-              <strong>{dupPairs.filter(p => !p.dismissed).length}</strong> {lang === "es" ? "posibles duplicados pendientes de revisar" : "possible duplicates pending review"}
-            </span>
-            <button className="btn btn-sm" style={{ borderColor: "#d97706", color: "#92400e" }} onClick={() => setShowDups(true)}>
-              {lang === "es" ? "Revisar duplicados" : "Review duplicates"}
-            </button>
-          </div>
-        )}
-        {view}
-      </main>
+      <main className="main">{view}</main>
 
       {modal === "new-person" && (
         <NewPersonForm t={t} lang={lang} data={data} onClose={() => { setModal(null); setModalPrefill(null); }} onSave={handleSavePerson} prefillData={modalPrefill} />
@@ -450,17 +484,6 @@ const App = () => {
         if (!entity) return null;
         return <NewEntityForm t={t} lang={lang} data={data} onClose={() => { setModal(null); setEditingId(null); }} onSave={handleSaveEditEntity} initialData={entity} editMode />;
       })()}
-      {showDups && dupPairs.some(p => !p.dismissed) && (
-        <DuplicateReviewModal
-          pairs={dupPairs}
-          data={data}
-          onMerge={handleMergePersonas}
-          onDismiss={handleDismissDup}
-          onClose={() => setShowDups(false)}
-          t={t}
-          lang={lang}
-        />
-      )}
     </div>
   );
 };
