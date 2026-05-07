@@ -290,8 +290,8 @@ const App = () => {
   let view;
   switch (route.name) {
     case "home": view = <Home t={t} lang={lang} data={data} go={go} />; break;
-    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} />; break;
-    case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} onImportEntities={handleImportEntities} />; break;
+    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} globalQ={query} />; break;
+    case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} onImportEntities={handleImportEntities} globalQ={query} />; break;
     case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdatePerson={handleUpdatePerson} />; break;
     case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
@@ -304,7 +304,7 @@ const App = () => {
       <Topbar
         t={t} lang={lang} setLang={setLang}
         query={query} setQuery={setQuery}
-        onSearchSubmit={() => { if (query.trim()) setRoute({ name: "personas" }); }}
+        onSearchSubmit={() => { if (query.trim() && route.name !== "personas" && route.name !== "entities") setRoute({ name: "personas" }); }}
         onSettings={() => setModal("settings")}
         userEmail={userEmail}
       />

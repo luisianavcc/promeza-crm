@@ -261,7 +261,7 @@ const FField = ({ label, children }) => (
   </div>
 );
 
-const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
+const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "" }) => {
   const [role, setRole] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
@@ -288,10 +288,9 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
     if (tagFilter && !(p.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (emailFilter && !(p.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
     if (phoneFilter && !(p.phone || "").toLowerCase().includes(phoneFilter.toLowerCase())) return false;
-    if (q) {
-      const s = (fullName(p) + " " + (p.email || "") + " " + (p.phone || "") + " " + (p.city || "") + " " + (p.tags || []).join(" ")).toLowerCase();
-      if (!s.includes(q.toLowerCase())) return false;
-    }
+    const searchStr = (fullName(p) + " " + (p.email || "") + " " + (p.phone || "") + " " + (p.city || "") + " " + (p.tags || []).join(" ")).toLowerCase();
+    if (q && !searchStr.includes(q.toLowerCase())) return false;
+    if (globalQ && !searchStr.includes(globalQ.toLowerCase())) return false;
     return true;
   });
 
@@ -520,7 +519,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
   );
 };
 
-const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
+const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => {
   const [type, setType] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
@@ -550,10 +549,9 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
     if (tagFilter && !(e.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (emailFilter && !(e.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
     if (phoneFilter && !(e.phone || "").toLowerCase().includes(phoneFilter.toLowerCase())) return false;
-    if (q) {
-      const s = (e.name + " " + (e.email || "") + " " + (e.phone || "") + " " + (e.city || "") + " " + (e.country || "")).toLowerCase();
-      if (!s.includes(q.toLowerCase())) return false;
-    }
+    const searchStr = (e.name + " " + (e.email || "") + " " + (e.phone || "") + " " + (e.city || "") + " " + (e.country || "")).toLowerCase();
+    if (q && !searchStr.includes(q.toLowerCase())) return false;
+    if (globalQ && !searchStr.includes(globalQ.toLowerCase())) return false;
     return true;
   });
 
