@@ -19,14 +19,34 @@ const SelectField = ({ label, value, onChange, options, full }) => (
 
 // ─── New Person ───
 
-const NewPersonForm = ({ t, lang, data, onClose, onSave }) => {
-  const [form, setForm] = React.useState({
+const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, prefillData }) => {
+  const [form, setForm] = React.useState(() => initialData ? {
+    first: initialData.first || "",
+    last: initialData.last || "",
+    role: initialData.role || "miembro",
+    roleOther: initialData.roleOther || "",
+    email: initialData.email || "",
+    phone: initialData.phone || "",
+    address: initialData.address || "",
+    zip: initialData.zip || "",
+    city: initialData.city || "",
+    state: initialData.state || "",
+    country: initialData.country || "",
+    website: initialData.website || "",
+    social: initialData.social || { ig: "", fb: "", tiktok: "", x: "" },
+    entities: initialData.entities || [],
+    tags: Array.isArray(initialData.tags) ? initialData.tags.join(", ") : (initialData.tags || ""),
+    language: initialData.language || "es",
+    status: initialData.status || "activo",
+    birthday: initialData.birthday || "",
+    lastContact: initialData.lastContact || "",
+  } : {
     first: "", last: "", role: "miembro", roleOther: "",
     email: "", phone: "",
     address: "", zip: "", city: "", state: "", country: "",
     website: "",
     social: { ig: "", fb: "", tiktok: "", x: "" },
-    entities: [],
+    entities: prefillData?.entityId ? [{ id: prefillData.entityId, role: prefillData.entityRole || "miembro", roleOther: "", comment: "" }] : [],
     tags: "", language: "es", status: "activo", birthday: "", lastContact: "",
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -45,7 +65,7 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave }) => {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>{t.forms.newPersonTitle}</div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>{editMode ? (lang === "es" ? "Editar persona" : "Edit person") : t.forms.newPersonTitle}</div>
             <div className="muted" style={{ fontSize: 12 }}>{t.forms.basic}</div>
           </div>
           <button className="icon-btn" onClick={onClose}><Icon name="x" /></button>
@@ -118,7 +138,7 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave }) => {
         <div className="modal-foot">
           <button className="btn" onClick={onClose}>{t.common.cancel}</button>
           <button className="btn btn-primary" onClick={() => onSave(form)} disabled={!form.first || !form.last}>
-            <Icon name="plus" /> {t.forms.saveCreate}
+            {editMode ? <><Icon name="check" /> {lang === "es" ? "Guardar cambios" : "Save changes"}</> : <><Icon name="plus" /> {t.forms.saveCreate}</>}
           </button>
         </div>
       </div>
@@ -128,8 +148,25 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave }) => {
 
 // ─── New Entity ───
 
-const NewEntityForm = ({ t, lang, data, onClose, onSave }) => {
-  const [form, setForm] = React.useState({
+const NewEntityForm = ({ t, lang, data, onClose, onSave, initialData, editMode }) => {
+  const [form, setForm] = React.useState(() => initialData ? {
+    name: initialData.name || "",
+    type: initialData.type || "iglesia",
+    typeOther: initialData.typeOther || "",
+    email: initialData.email || "",
+    phone: initialData.phone || "",
+    address: initialData.address || "",
+    zip: initialData.zip || "",
+    city: initialData.city || "",
+    state: initialData.state || "",
+    country: initialData.country || "",
+    website: initialData.website || "",
+    social: initialData.social || { ig: "", fb: "", tiktok: "", x: "" },
+    size: initialData.size ? String(initialData.size) : "",
+    founded: initialData.founded || "",
+    parent: initialData.parent || "",
+    tags: Array.isArray(initialData.tags) ? initialData.tags.join(", ") : (initialData.tags || ""),
+  } : {
     name: "", type: "iglesia", typeOther: "",
     email: "", phone: "",
     address: "", zip: "", city: "", state: "", country: "",
@@ -149,7 +186,7 @@ const NewEntityForm = ({ t, lang, data, onClose, onSave }) => {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>{t.forms.newEntityTitle}</div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>{editMode ? (lang === "es" ? "Editar entidad" : "Edit entity") : t.forms.newEntityTitle}</div>
             <div className="muted" style={{ fontSize: 12 }}>{t.forms.basic}</div>
           </div>
           <button className="icon-btn" onClick={onClose}><Icon name="x" /></button>
@@ -197,7 +234,7 @@ const NewEntityForm = ({ t, lang, data, onClose, onSave }) => {
         <div className="modal-foot">
           <button className="btn" onClick={onClose}>{t.common.cancel}</button>
           <button className="btn btn-primary" onClick={() => onSave(form)} disabled={!form.name}>
-            <Icon name="plus" /> {t.forms.saveCreate}
+            {editMode ? <><Icon name="check" /> {lang === "es" ? "Guardar cambios" : "Save changes"}</> : <><Icon name="plus" /> {t.forms.saveCreate}</>}
           </button>
         </div>
       </div>

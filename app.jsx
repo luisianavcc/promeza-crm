@@ -196,17 +196,29 @@ const App = () => {
 
   const [route, setRoute] = useState({ name: "home" });
   const [query, setQuery] = useState("");
-  const [modal, setModal] = useState(null); // 'new-person' | 'new-entity' | 'settings' | null
+  const [modal, setModal] = useState(null); // 'new-person' | 'new-entity' | 'edit-person' | 'edit-entity' | 'settings' | null
+  const [editingId, setEditingId] = useState(null);
+  const [modalPrefill, setModalPrefill] = useState(null);
 
-  const [data, setData] = useState(() => ({
-    personas: [...window.PROMEZA_DATA.personas],
-    entities: [...window.PROMEZA_DATA.entities],
-    comments: { ...window.PROMEZA_DATA.comments },
-  }));
+  const [data, setData] = useState(() => {
+    try {
+      const saved = localStorage.getItem("promeza_data");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      personas: [...window.PROMEZA_DATA.personas],
+      entities: [...window.PROMEZA_DATA.entities],
+      comments: { ...window.PROMEZA_DATA.comments },
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem("promeza_data", JSON.stringify(data));
+  }, [data]);
 
   const go = (r) => {
-    if (r.name === "new-person") { setModal("new-person"); return; }
-    if (r.name === "new-entity") { setModal("new-entity"); return; }
+    if (r.name === "new-person") { setModalPrefill(r.prefill || null); setModal("new-person"); return; }
+    if (r.name === "new-entity") { setModalPrefill(r.prefill || null); setModal("new-entity"); return; }
     setRoute(r);
     window.scrollTo({ top: 0 });
   };
@@ -279,6 +291,32 @@ const App = () => {
     setData(d => ({ ...d, entities: d.entities.map(e => e.id === id ? { ...e, ...updates } : e) }));
   };
 
+  const handleEditPerson = (id) => { setEditingId(id); setModal("edit-person"); };
+  const handleSaveEditPerson = (form) => {
+    const tags = form.tags ? form.tags.split(",").map(s => s.trim()).filter(Boolean) : [];
+    handleUpdatePerson(editingId, { ...form, tags, entities: form.entities.map(le => ({ id: le.id, role: le.role, roleOther: le.roleOther })) });
+    setModal(null);
+    setEditingId(null);
+  };
+  const handleDeletePerson = (id) => {
+    if (!confirm(lang === "es" ? "¿Eliminar esta persona? Esta acción no se puede deshacer." : "Delete this person? This cannot be undone.")) return;
+    setData(d => ({ ...d, personas: d.personas.filter(p => p.id !== id) }));
+    setRoute({ name: "personas" });
+  };
+
+  const handleEditEntity = (id) => { setEditingId(id); setModal("edit-entity"); };
+  const handleSaveEditEntity = (form) => {
+    const tags = form.tags ? form.tags.split(",").map(s => s.trim()).filter(Boolean) : [];
+    handleUpdateEntity(editingId, { ...form, tags, size: form.size ? parseInt(form.size) : null });
+    setModal(null);
+    setEditingId(null);
+  };
+  const handleDeleteEntity = (id) => {
+    if (!confirm(lang === "es" ? "¿Eliminar esta entidad? Esta acción no se puede deshacer." : "Delete this entity? This cannot be undone.")) return;
+    setData(d => ({ ...d, entities: d.entities.filter(e => e.id !== id) }));
+    setRoute({ name: "entities" });
+  };
+
   // Not ready yet
   if (!authChecked) return null;
 
@@ -292,8 +330,8 @@ const App = () => {
     case "home": view = <Home t={t} lang={lang} data={data} go={go} />; break;
     case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} globalQ={query} />; break;
     case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} onImportEntities={handleImportEntities} globalQ={query} />; break;
-    case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdatePerson={handleUpdatePerson} />; break;
-    case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} />; break;
+    case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdatePerson={handleUpdatePerson} onEditPerson={handleEditPerson} onDeletePerson={handleDeletePerson} />; break;
+    case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;
   }
@@ -311,7 +349,7 @@ const App = () => {
       <main className="main">{view}</main>
 
       {modal === "new-person" && (
-        <NewPersonForm t={t} lang={lang} data={data} onClose={() => setModal(null)} onSave={handleSavePerson} />
+        <NewPersonForm t={t} lang={lang} data={data} onClose={() => { setModal(null); setModalPrefill(null); }} onSave={handleSavePerson} prefillData={modalPrefill} />
       )}
       {modal === "new-entity" && (
         <NewEntityForm t={t} lang={lang} data={data} onClose={() => setModal(null)} onSave={handleSaveEntity} />
@@ -323,6 +361,16 @@ const App = () => {
           onLogout={() => setUserEmail(null)}
         />
       )}
+      {modal === "edit-person" && editingId && (() => {
+        const person = data.personas.find(p => p.id === editingId);
+        if (!person) return null;
+        return <NewPersonForm t={t} lang={lang} data={data} onClose={() => { setModal(null); setEditingId(null); }} onSave={handleSaveEditPerson} initialData={person} editMode />;
+      })()}
+      {modal === "edit-entity" && editingId && (() => {
+        const entity = data.entities.find(e => e.id === editingId);
+        if (!entity) return null;
+        return <NewEntityForm t={t} lang={lang} data={data} onClose={() => { setModal(null); setEditingId(null); }} onSave={handleSaveEditEntity} initialData={entity} editMode />;
+      })()}
     </div>
   );
 };

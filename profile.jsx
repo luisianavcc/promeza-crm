@@ -68,10 +68,26 @@ const Comments = ({ items, t, lang, onAdd }) => {
 
 // ─── PERSON PROFILE ───
 
-const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson }) => {
+const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEditPerson, onDeletePerson }) => {
   const p = data.personas.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
+  const [linking, setLinking] = React.useState(false);
+  const [linkEntityId, setLinkEntityId] = React.useState("");
+  const [linkRole, setLinkRole] = React.useState("miembro");
   if (!p) return <div className="empty">Not found</div>;
+
+  const availableEntities = data.entities.filter(e => !p.entities.some(le => le.id === e.id));
+
+  const doLinkEntity = () => {
+    if (!linkEntityId) return;
+    onUpdatePerson && onUpdatePerson(p.id, { entities: [...p.entities, { id: linkEntityId, role: linkRole, roleOther: "" }] });
+    setLinking(false);
+    setLinkEntityId("");
+    setLinkRole("miembro");
+  };
+  const doUnlinkEntity = (entityId) => {
+    onUpdatePerson && onUpdatePerson(p.id, { entities: p.entities.filter(le => le.id !== entityId) });
+  };
 
   const linkedEntities = p.entities.map(le => ({
     link: le, entity: data.entities.find(e => e.id === le.id),
@@ -107,11 +123,22 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson }) =>
         <div className="actions">
           <button className="btn" onClick={() => window.location.href = "mailto:" + p.email}><Icon name="mail" /> Email</button>
           <button className="btn" onClick={() => window.location.href = "tel:" + p.phone}><Icon name="phone" /></button>
+          <button className="btn" style={{ color: "var(--good)", borderColor: "var(--good)" }}
+            onClick={() => onUpdatePerson && onUpdatePerson(p.id, { lastContact: new Date().toISOString().slice(0, 10) })}>
+            <Icon name="check" /> {lang === "es" ? "Contactado hoy" : "Contacted today"}
+          </button>
+          <button className="btn" onClick={() => onEditPerson && onEditPerson(p.id)}>
+            <Icon name="edit" /> {t.common.edit}
+          </button>
           <button className="btn"
             style={p.status !== "inactivo" ? { color: "var(--bad)", borderColor: "var(--bad)" } : { color: "var(--good)", borderColor: "var(--good)" }}
             onClick={() => onUpdatePerson && onUpdatePerson(p.id, { status: p.status === "inactivo" ? "activo" : "inactivo" })}>
             <Icon name={p.status === "inactivo" ? "check" : "x"} />
             {p.status === "inactivo" ? (lang === "es" ? "Reactivar" : "Reactivate") : (lang === "es" ? "Inactivar" : "Deactivate")}
+          </button>
+          <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
+            onClick={() => onDeletePerson && onDeletePerson(p.id)}>
+            <Icon name="trash" /> {lang === "es" ? "Eliminar" : "Delete"}
           </button>
         </div>
       </div>
@@ -193,18 +220,45 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson }) =>
       {tab === "links" && (
         <div className="section">
           <h3>{t.common.relatedEntities}
-            <button className="btn btn-sm"><Icon name="plus" /> {t.common.linkEntity}</button>
+            {!linking && availableEntities.length > 0 && (
+              <button className="btn btn-sm" onClick={() => { setLinking(true); setLinkEntityId(availableEntities[0]?.id || ""); }}>
+                <Icon name="plus" /> {lang === "es" ? "Vincular entidad" : "Link entity"}
+              </button>
+            )}
           </h3>
+          {linking && (
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "12px 16px", background: "var(--bg-soft)", borderBottom: "1px solid var(--line)", flexWrap: "wrap" }}>
+              <div className="field" style={{ margin: 0, flex: "1 1 180px" }}>
+                <label style={{ fontSize: 11 }}>{lang === "es" ? "Entidad" : "Entity"}</label>
+                <select value={linkEntityId} onChange={e => setLinkEntityId(e.target.value)}>
+                  {availableEntities.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+              <div className="field" style={{ margin: 0, flex: "1 1 140px" }}>
+                <label style={{ fontSize: 11 }}>{lang === "es" ? "Cargo" : "Role"}</label>
+                <select value={linkRole} onChange={e => setLinkRole(e.target.value)}>
+                  {Object.keys(t.roles).map(k => <option key={k} value={k}>{t.roles[k]}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: 6, paddingBottom: 1 }}>
+                <button className="btn btn-sm btn-primary" onClick={doLinkEntity}><Icon name="check" /> {lang === "es" ? "Vincular" : "Link"}</button>
+                <button className="btn btn-sm" onClick={() => setLinking(false)}>{lang === "es" ? "Cancelar" : "Cancel"}</button>
+              </div>
+            </div>
+          )}
           <div className="section-body">
-            {linkedEntities.length === 0 && <div className="empty">{t.common.none}</div>}
+            {linkedEntities.length === 0 && !linking && <div className="empty">{t.common.none}</div>}
             {linkedEntities.map(({ link, entity }) => (
-              <div key={link.id} className="link-row" style={{ cursor: "pointer" }} onClick={() => go({ name: "entity", id: entity.id })}>
-                <div className="ent-icon"><Icon name="building" /></div>
-                <div className="grow">
+              <div key={link.id} className="link-row">
+                <div className="ent-icon" style={{ cursor: "pointer" }} onClick={() => go({ name: "entity", id: entity.id })}><Icon name="building" /></div>
+                <div className="grow" style={{ cursor: "pointer" }} onClick={() => go({ name: "entity", id: entity.id })}>
                   <div className="title">{entity.name}</div>
                   <div className="row-sub">{t.types[entity.type]} · {entity.city}, {entity.country}</div>
                 </div>
                 <span className="role-pill">{link.role === "otro" ? (link.roleOther || t.roles.otro) : t.roles[link.role]}</span>
+                <button className="btn btn-sm btn-ghost" style={{ color: "var(--bad)" }} onClick={() => doUnlinkEntity(entity.id)}>
+                  <Icon name="x" />
+                </button>
               </div>
             ))}
           </div>
@@ -234,9 +288,12 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson }) =>
 
 // ─── ENTITY PROFILE ───
 
-const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity }) => {
+const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUpdatePerson, onEditEntity, onDeleteEntity }) => {
   const e = data.entities.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
+  const [linking, setLinking] = React.useState(false);
+  const [linkPersonId, setLinkPersonId] = React.useState("");
+  const [linkRole, setLinkRole] = React.useState("miembro");
   if (!e) return <div className="empty">Not found</div>;
 
   const linkedPeople = data.personas
@@ -245,6 +302,28 @@ const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity }) =>
 
   const children = data.entities.filter(c => c.parent === e.id);
   const parent = e.parent ? data.entities.find(x => x.id === e.parent) : null;
+
+  const linkedPersonIds = new Set(linkedPeople.map(x => x.p.id));
+  const availablePersons = data.personas.filter(p => !linkedPersonIds.has(p.id));
+
+  const doLinkPerson = () => {
+    if (!linkPersonId) return;
+    const target = data.personas.find(p => p.id === linkPersonId);
+    if (!target) return;
+    onUpdatePerson && onUpdatePerson(linkPersonId, {
+      entities: [...target.entities, { id: e.id, role: linkRole, roleOther: "" }],
+    });
+    setLinking(false);
+    setLinkPersonId("");
+    setLinkRole("miembro");
+  };
+  const doUnlinkPerson = (personId) => {
+    const target = data.personas.find(p => p.id === personId);
+    if (!target) return;
+    onUpdatePerson && onUpdatePerson(personId, {
+      entities: target.entities.filter(le => le.id !== e.id),
+    });
+  };
 
   const tabs = [
     { id: "details", label: t.common.details },
@@ -278,11 +357,21 @@ const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity }) =>
         <div className="actions">
           <button className="btn" onClick={() => window.location.href = "mailto:" + e.email}><Icon name="mail" /> Email</button>
           {e.website && <button className="btn" onClick={() => window.open("https://" + e.website, "_blank")}><Icon name="globe" /> Web</button>}
+          <button className="btn btn-primary" onClick={() => go({ name: "new-person", prefill: { entityId: e.id } })}>
+            <Icon name="plus" /> {lang === "es" ? "Agregar persona" : "Add person"}
+          </button>
+          <button className="btn" onClick={() => onEditEntity && onEditEntity(e.id)}>
+            <Icon name="edit" /> {t.common.edit}
+          </button>
           <button className="btn"
             style={(e.status || "activo") !== "inactivo" ? { color: "var(--bad)", borderColor: "var(--bad)" } : { color: "var(--good)", borderColor: "var(--good)" }}
             onClick={() => onUpdateEntity && onUpdateEntity(e.id, { status: (e.status || "activo") === "inactivo" ? "activo" : "inactivo" })}>
             <Icon name={(e.status || "activo") === "inactivo" ? "check" : "x"} />
             {(e.status || "activo") === "inactivo" ? (lang === "es" ? "Reactivar" : "Reactivate") : (lang === "es" ? "Inactivar" : "Deactivate")}
+          </button>
+          <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
+            onClick={() => onDeleteEntity && onDeleteEntity(e.id)}>
+            <Icon name="trash" /> {lang === "es" ? "Eliminar" : "Delete"}
           </button>
         </div>
       </div>
@@ -399,19 +488,51 @@ const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity }) =>
         <div className="section">
           <h3>
             <span>{t.common.relatedPersonas} <span className="muted mono" style={{ fontSize: 11, marginLeft: 6 }}>{linkedPeople.length}</span></span>
-            <button className="btn btn-sm"><Icon name="plus" /> {t.common.linkPerson}</button>
+            <div style={{ display: "flex", gap: 6 }}>
+              {availablePersons.length > 0 && !linking && (
+                <button className="btn btn-sm" onClick={() => { setLinking(true); setLinkPersonId(availablePersons[0]?.id || ""); }}>
+                  <Icon name="plus" /> {lang === "es" ? "Vincular existente" : "Link existing"}
+                </button>
+              )}
+              <button className="btn btn-sm btn-primary" onClick={() => go({ name: "new-person", prefill: { entityId: e.id } })}>
+                <Icon name="plus" /> {lang === "es" ? "Nueva persona aquí" : "New person here"}
+              </button>
+            </div>
           </h3>
+          {linking && (
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "12px 16px", background: "var(--bg-soft)", borderBottom: "1px solid var(--line)", flexWrap: "wrap" }}>
+              <div className="field" style={{ margin: 0, flex: "1 1 200px" }}>
+                <label style={{ fontSize: 11 }}>{lang === "es" ? "Persona" : "Person"}</label>
+                <select value={linkPersonId} onChange={e2 => setLinkPersonId(e2.target.value)}>
+                  {availablePersons.map(p => <option key={p.id} value={p.id}>{fullName(p)}</option>)}
+                </select>
+              </div>
+              <div className="field" style={{ margin: 0, flex: "1 1 140px" }}>
+                <label style={{ fontSize: 11 }}>{lang === "es" ? "Cargo" : "Role"}</label>
+                <select value={linkRole} onChange={e2 => setLinkRole(e2.target.value)}>
+                  {Object.keys(t.roles).map(k => <option key={k} value={k}>{t.roles[k]}</option>)}
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: 6, paddingBottom: 1 }}>
+                <button className="btn btn-sm btn-primary" onClick={doLinkPerson}><Icon name="check" /> {lang === "es" ? "Vincular" : "Link"}</button>
+                <button className="btn btn-sm" onClick={() => setLinking(false)}>{lang === "es" ? "Cancelar" : "Cancel"}</button>
+              </div>
+            </div>
+          )}
           <div className="section-body">
-            {linkedPeople.length === 0 && <div className="empty">{t.common.none}</div>}
+            {linkedPeople.length === 0 && !linking && <div className="empty">{t.common.none}</div>}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {linkedPeople.map(({ p, link }) => (
-                <div key={p.id} className="link-row" style={{ cursor: "pointer" }} onClick={() => go({ name: "person", id: p.id })}>
-                  <div className="av-circle" style={{ background: p.color }}>{initials(fullName(p))}</div>
-                  <div className="grow">
+                <div key={p.id} className="link-row">
+                  <div className="av-circle" style={{ background: p.color, cursor: "pointer" }} onClick={() => go({ name: "person", id: p.id })}>{initials(fullName(p))}</div>
+                  <div className="grow" style={{ cursor: "pointer" }} onClick={() => go({ name: "person", id: p.id })}>
                     <div className="title">{fullName(p)}</div>
                     <div className="row-sub">{p.email} · {p.city}</div>
                   </div>
                   <span className="role-pill">{link.role === "otro" ? (link.roleOther || t.roles.otro) : t.roles[link.role]}</span>
+                  <button className="btn btn-sm btn-ghost" style={{ color: "var(--bad)" }} onClick={() => doUnlinkPerson(p.id)}>
+                    <Icon name="x" />
+                  </button>
                 </div>
               ))}
             </div>

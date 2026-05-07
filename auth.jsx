@@ -120,11 +120,14 @@ const AuthScreen = ({ onLogin }) => {
     onLogin(stored ? stored.email : ADMIN_EMAIL);
   };
 
-  const Field = ({ label, type = "text", value, onChange, placeholder, mono, autoFocus }) => (
+  const Field = ({ label, type = "text", value, onChange, placeholder, mono, autoFocus, name, id, autoComplete }) => (
     <div className="field" style={{ marginBottom: 14 }}>
-      <label>{label}</label>
+      <label htmlFor={id}>{label}</label>
       <input
         type={type}
+        id={id}
+        name={name}
+        autoComplete={autoComplete}
         value={value || ""}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
@@ -167,6 +170,9 @@ const AuthScreen = ({ onLogin }) => {
             <Field
               label="Nueva contraseña"
               type="password"
+              id="setup-pw1"
+              name="new-password"
+              autoComplete="new-password"
               value={password}
               onChange={setPassword}
               placeholder="Mínimo 6 caracteres"
@@ -175,6 +181,9 @@ const AuthScreen = ({ onLogin }) => {
             <Field
               label="Confirmar contraseña"
               type="password"
+              id="setup-pw2"
+              name="confirm-password"
+              autoComplete="new-password"
               value={password2}
               onChange={setPassword2}
               placeholder="Repite la contraseña"
@@ -206,6 +215,9 @@ const AuthScreen = ({ onLogin }) => {
             <Field
               label="Contraseña"
               type="password"
+              id="login-pw"
+              name="password"
+              autoComplete="current-password"
               value={password}
               onChange={setPassword}
               placeholder="Tu contraseña"
@@ -345,8 +357,8 @@ const AuthScreen = ({ onLogin }) => {
                 style={{ letterSpacing: "0.35em", fontSize: 20, textAlign: "center", fontFamily: "var(--font-mono)" }}
               />
             </div>
-            <Field label="Nueva contraseña" type="password" value={password} onChange={setPassword} placeholder="Mínimo 6 caracteres" />
-            <Field label="Confirmar contraseña" type="password" value={password2} onChange={setPassword2} placeholder="Repite la contraseña" />
+            <Field label="Nueva contraseña" type="password" id="reset-pw1" name="new-password" autoComplete="new-password" value={password} onChange={setPassword} placeholder="Mínimo 6 caracteres" />
+            <Field label="Confirmar contraseña" type="password" id="reset-pw2" name="confirm-password" autoComplete="new-password" value={password2} onChange={setPassword2} placeholder="Repite la contraseña" />
             {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
             <button className="btn btn-primary btn-block auth-submit" onClick={doReset}>
               Cambiar contraseña y entrar
