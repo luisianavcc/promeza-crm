@@ -199,6 +199,8 @@ const App = () => {
   const [modal, setModal] = useState(null); // 'new-person' | 'new-entity' | 'edit-person' | 'edit-entity' | 'settings' | null
   const [editingId, setEditingId] = useState(null);
   const [modalPrefill, setModalPrefill] = useState(null);
+  const [dupPairs, setDupPairs] = useState([]);
+  const [showDups, setShowDups] = useState(false);
 
   const [data, setData] = useState(() => {
     try {
@@ -236,7 +238,7 @@ const App = () => {
   };
 
   const handleSavePerson = (form) => {
-    const id = "p" + (data.personas.length + 1);
+    const id = "p" + Date.now();
     const tags = form.tags ? form.tags.split(",").map(s => s.trim()).filter(Boolean) : [];
     const palette = ["#2F6BFF", "#0E7C66", "#B45309", "#7C3AED", "#BE185D", "#0369A1", "#15803D"];
     const color = palette[(form.first.charCodeAt(0) || 0) % palette.length];
@@ -252,7 +254,12 @@ const App = () => {
       birthday: form.birthday, lastContact: form.lastContact,
       color,
     };
-    setData(d => ({ ...d, personas: [newP, ...d.personas] }));
+    setData(d => {
+      const next = { ...d, personas: [newP, ...d.personas] };
+      const pairs = findDuplicatePairs(next.personas, dupPairs);
+      if (pairs.length > 0) { setDupPairs(prev => { const existing = new Set(prev.map(p => p.idA+"|"+p.idB)); return [...prev, ...pairs.filter(p => !existing.has(p.idA+"|"+p.idB))]; }); setShowDups(true); }
+      return next;
+    });
     setModal(null);
     setRoute({ name: "person", id });
   };
@@ -276,7 +283,12 @@ const App = () => {
   };
 
   const handleImportPersonas = (imported) => {
-    setData(d => ({ ...d, personas: [...imported, ...d.personas] }));
+    setData(d => {
+      const next = { ...d, personas: [...imported, ...d.personas] };
+      const pairs = findDuplicatePairs(next.personas, dupPairs);
+      if (pairs.length > 0) { setDupPairs(prev => { const existing = new Set(prev.map(p => p.idA+"|"+p.idB)); return [...prev, ...pairs.filter(p => !existing.has(p.idA+"|"+p.idB))]; }); setShowDups(true); }
+      return next;
+    });
   };
 
   const handleImportEntities = (imported) => {
@@ -317,6 +329,60 @@ const App = () => {
     setRoute({ name: "entities" });
   };
 
+  const handleMergePersonas = (idA, idB) => {
+    setData(d => {
+      const keep = d.personas.find(p => p.id === idA);
+      const drop = d.personas.find(p => p.id === idB);
+      if (!keep || !drop) return d;
+      const merged = {
+        ...keep,
+        email: keep.email || drop.email || "",
+        phone: keep.phone || drop.phone || "",
+        address: keep.address || drop.address || "",
+        zip: keep.zip || drop.zip || "",
+        city: keep.city || drop.city || "",
+        state: keep.state || drop.state || "",
+        country: keep.country || drop.country || "",
+        website: keep.website || drop.website || "",
+        birthday: keep.birthday || drop.birthday || "",
+        lastContact: (keep.lastContact || "") >= (drop.lastContact || "") ? keep.lastContact : drop.lastContact,
+        tags: [...new Set([...(keep.tags || []), ...(drop.tags || [])])],
+        entities: [
+          ...(keep.entities || []),
+          ...(drop.entities || []).filter(de => !(keep.entities || []).some(ke => ke.id === de.id)),
+        ],
+        social: {
+          ig: keep.social?.ig || drop.social?.ig || "",
+          fb: keep.social?.fb || drop.social?.fb || "",
+          tiktok: keep.social?.tiktok || drop.social?.tiktok || "",
+          x: keep.social?.x || drop.social?.x || "",
+        },
+      };
+      const mergedComments = [
+        ...(d.comments[idA] || []),
+        ...(d.comments[idB] || []),
+      ].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      const newComments = { ...d.comments, [idA]: mergedComments };
+      delete newComments[idB];
+      return {
+        ...d,
+        personas: d.personas.map(p => p.id === idA ? merged : p).filter(p => p.id !== idB),
+        comments: newComments,
+      };
+    });
+    setDupPairs(ps => ps
+      .map(p => (p.idA === idA && p.idB === idB) || (p.idA === idB && p.idB === idA) ? { ...p, dismissed: true } : p)
+      .filter(p => p.idA !== idB && p.idB !== idB)
+    );
+    if (route.id === idB) setRoute({ name: "person", id: idA });
+  };
+
+  const handleDismissDup = (pair) => {
+    setDupPairs(ps => ps.map(p =>
+      p.idA === pair.idA && p.idB === pair.idB ? { ...p, dismissed: true } : p
+    ));
+  };
+
   // Not ready yet
   if (!authChecked) return null;
 
@@ -346,7 +412,20 @@ const App = () => {
         onSettings={() => setModal("settings")}
         userEmail={userEmail}
       />
-      <main className="main">{view}</main>
+      <main className="main">
+        {dupPairs.filter(p => !p.dismissed).length > 0 && !showDups && (
+          <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "10px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+            <span style={{ fontSize: 16 }}>⚠</span>
+            <span style={{ flex: 1, color: "#92400e" }}>
+              <strong>{dupPairs.filter(p => !p.dismissed).length}</strong> {lang === "es" ? "posibles duplicados pendientes de revisar" : "possible duplicates pending review"}
+            </span>
+            <button className="btn btn-sm" style={{ borderColor: "#d97706", color: "#92400e" }} onClick={() => setShowDups(true)}>
+              {lang === "es" ? "Revisar duplicados" : "Review duplicates"}
+            </button>
+          </div>
+        )}
+        {view}
+      </main>
 
       {modal === "new-person" && (
         <NewPersonForm t={t} lang={lang} data={data} onClose={() => { setModal(null); setModalPrefill(null); }} onSave={handleSavePerson} prefillData={modalPrefill} />
@@ -371,6 +450,17 @@ const App = () => {
         if (!entity) return null;
         return <NewEntityForm t={t} lang={lang} data={data} onClose={() => { setModal(null); setEditingId(null); }} onSave={handleSaveEditEntity} initialData={entity} editMode />;
       })()}
+      {showDups && dupPairs.some(p => !p.dismissed) && (
+        <DuplicateReviewModal
+          pairs={dupPairs}
+          data={data}
+          onMerge={handleMergePersonas}
+          onDismiss={handleDismissDup}
+          onClose={() => setShowDups(false)}
+          t={t}
+          lang={lang}
+        />
+      )}
     </div>
   );
 };
