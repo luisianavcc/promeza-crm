@@ -61,6 +61,205 @@ const DupField = ({ label, a, b }) => {
   );
 };
 
+// ─── Merge Editor — field-by-field selection ───
+
+const MergeEditor = ({ pA, pB, data, onConfirm, onCancel, t, lang }) => {
+  const FIELDS = [
+    { key: "first",       label: lang === "es" ? "Nombre" : "First name",       group: "basic" },
+    { key: "last",        label: lang === "es" ? "Apellido" : "Last name",       group: "basic" },
+    { key: "role",        label: lang === "es" ? "Cargo" : "Role",               group: "basic", fmt: v => t.roles[v] || v },
+    { key: "email",       label: "Email",                                         group: "contact" },
+    { key: "phone",       label: lang === "es" ? "Teléfono" : "Phone",           group: "contact" },
+    { key: "address",     label: lang === "es" ? "Dirección" : "Address",        group: "location" },
+    { key: "zip",         label: "ZIP",                                           group: "location" },
+    { key: "city",        label: lang === "es" ? "Ciudad" : "City",              group: "location" },
+    { key: "state",       label: lang === "es" ? "Estado" : "State",             group: "location" },
+    { key: "country",     label: lang === "es" ? "País" : "Country",             group: "location" },
+    { key: "website",     label: "Web",                                           group: "social" },
+    { key: "social.ig",   label: "Instagram",                                    group: "social" },
+    { key: "social.fb",   label: "Facebook",                                     group: "social" },
+    { key: "social.tiktok", label: "TikTok",                                     group: "social" },
+    { key: "social.x",    label: "X (Twitter)",                                  group: "social" },
+    { key: "birthday",    label: lang === "es" ? "Cumpleaños" : "Birthday",      group: "extra" },
+    { key: "lastContact", label: lang === "es" ? "Ú. contacto" : "Last contact", group: "extra" },
+    { key: "language",    label: lang === "es" ? "Idioma" : "Language",          group: "extra", fmt: v => v === "en" ? "English" : "Español" },
+    { key: "status",      label: lang === "es" ? "Estado" : "Status",            group: "extra", fmt: v => t.common[v === "inactivo" ? "inactivos" : "activos"] || v },
+  ];
+  const GROUPS = [
+    { id: "basic",    label: lang === "es" ? "Datos básicos"  : "Basic info"  },
+    { id: "contact",  label: lang === "es" ? "Contacto"       : "Contact"     },
+    { id: "location", label: lang === "es" ? "Ubicación"      : "Location"    },
+    { id: "social",   label: "Social & Web"                                    },
+    { id: "extra",    label: lang === "es" ? "Adicional"      : "Additional"  },
+  ];
+
+  const getVal = (p, key) => {
+    if (key.includes(".")) { const [obj, k] = key.split("."); return p[obj]?.[k] || ""; }
+    return p[key] || "";
+  };
+
+  const [sels, setSels] = React.useState(() => {
+    const s = {};
+    FIELDS.forEach(f => {
+      const av = getVal(pA, f.key), bv = getVal(pB, f.key);
+      s[f.key] = (!bv && av) ? "A" : (!av && bv) ? "B" : "A";
+    });
+    return s;
+  });
+  const [keepSide, setKeepSide] = React.useState("A");
+
+  const setAll = (side) => {
+    setKeepSide(side);
+    const n = {}; FIELDS.forEach(f => n[f.key] = side); setSels(n);
+  };
+  const pickVal = (key) => {
+    if (key.includes(".")) { const [obj, k] = key.split("."); return sels[key] === "B" ? (pB[obj]?.[k] || "") : (pA[obj]?.[k] || ""); }
+    return sels[key] === "B" ? (pB[key] || "") : (pA[key] || "");
+  };
+
+  const handleConfirm = () => {
+    const base = keepSide === "A" ? pA : pB;
+    const merged = {
+      ...base,
+      first: pickVal("first"), last: pickVal("last"),
+      role: pickVal("role"),
+      roleOther: pickVal("role") === "otro" ? (sels.role === "B" ? pB.roleOther : pA.roleOther) : "",
+      email: pickVal("email"), phone: pickVal("phone"),
+      address: pickVal("address"), zip: pickVal("zip"), city: pickVal("city"),
+      state: pickVal("state"), country: pickVal("country"),
+      website: pickVal("website"),
+      birthday: pickVal("birthday"), lastContact: pickVal("lastContact"),
+      language: pickVal("language"), status: pickVal("status"),
+      social: { ig: pickVal("social.ig"), fb: pickVal("social.fb"), tiktok: pickVal("social.tiktok"), x: pickVal("social.x") },
+      tags: [...new Set([...(pA.tags || []), ...(pB.tags || [])])],
+      entities: [...(pA.entities || []), ...(pB.entities || []).filter(de => !(pA.entities || []).some(ke => ke.id === de.id))],
+    };
+    onConfirm(keepSide === "A" ? pA.id : pB.id, keepSide === "A" ? pB.id : pA.id, merged);
+  };
+
+  return (
+    <div className="modal-veil" style={{ zIndex: 1300 }} onClick={onCancel}>
+      <div className="modal" style={{ width: "min(840px,100%)" }} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>
+              {lang === "es" ? "Elegir datos del perfil fusionado" : "Choose data for merged profile"}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>
+              {lang === "es" ? "Haz clic en el valor que quieres conservar en cada campo" : "Click the value to keep for each field"}
+            </div>
+          </div>
+          <button className="icon-btn" onClick={onCancel}><Icon name="x" /></button>
+        </div>
+
+        <div className="modal-body">
+          {/* ── Profile base (which ID to keep) ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 1fr", gap: 10, marginBottom: 14, paddingBottom: 14, borderBottom: "2px solid var(--line)" }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--ink-4)" }}>
+                {lang === "es" ? "Perfil base" : "Base profile"}
+              </span>
+            </div>
+            {[{ side: "A", p: pA }, { side: "B", p: pB }].map(({ side, p }) => (
+              <div key={side} onClick={() => setKeepSide(side)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                  borderRadius: 8, cursor: "pointer",
+                  border: "2px solid " + (keepSide === side ? "var(--accent)" : "var(--line)"),
+                  background: keepSide === side ? "var(--accent-50)" : "transparent",
+                  transition: "border-color .15s, background .15s",
+                }}>
+                <div className="av-circle" style={{ background: p.color, flexShrink: 0 }}>{initials(fullName(p))}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{fullName(p)}</div>
+                  <div style={{ fontSize: 10, color: "var(--ink-4)", fontFamily: "var(--font-mono)" }}>ID conservado: {p.id}</div>
+                </div>
+                {keepSide === side && <Icon name="check" />}
+              </div>
+            ))}
+          </div>
+
+          {/* ── Select-all shortcuts ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 1fr", gap: 10, marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--ink-4)" }}>
+                {lang === "es" ? "Selección rápida" : "Quick select"}
+              </span>
+            </div>
+            <button className="btn btn-sm" onClick={() => setAll("A")} style={{ width: "100%" }}>← {lang === "es" ? "Todos de A" : "All from A"}</button>
+            <button className="btn btn-sm" onClick={() => setAll("B")} style={{ width: "100%" }}>{lang === "es" ? "Todos de B" : "All from B"} →</button>
+          </div>
+
+          {/* ── Field rows by group ── */}
+          {GROUPS.map(group => {
+            const gFields = FIELDS.filter(f => f.group === group.id).filter(f => getVal(pA, f.key) || getVal(pB, f.key));
+            if (!gFields.length) return null;
+            return (
+              <div key={group.id}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--ink-4)", margin: "16px 0 6px" }}>
+                  {group.label}
+                </div>
+                {gFields.map(f => {
+                  const aRaw = getVal(pA, f.key), bRaw = getVal(pB, f.key);
+                  const aDisp = f.fmt ? f.fmt(aRaw) : aRaw;
+                  const bDisp = f.fmt ? f.fmt(bRaw) : bRaw;
+                  const same = aRaw === bRaw;
+                  return (
+                    <div key={f.key} style={{ display: "grid", gridTemplateColumns: "90px 1fr 1fr", gap: 8, marginBottom: 5 }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--ink-4)", display: "flex", alignItems: "center" }}>
+                        {f.label}
+                      </div>
+                      {[{ side: "A", disp: aDisp, raw: aRaw }, { side: "B", disp: bDisp, raw: bRaw }].map(({ side, disp, raw }) => {
+                        const sel = sels[f.key] === side;
+                        return (
+                          <div key={side}
+                            onClick={() => !same && setSels(s => ({ ...s, [f.key]: side }))}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 7,
+                              padding: "7px 10px", borderRadius: 7, fontSize: 13,
+                              border: "2px solid " + (same ? "var(--line)" : sel ? "var(--accent)" : "var(--line)"),
+                              background: same ? "transparent" : sel ? "var(--accent-50)" : "var(--bg-soft)",
+                              cursor: same ? "default" : "pointer",
+                              color: raw ? (sel && !same ? "var(--accent-700)" : "var(--ink-1)") : "var(--ink-5)",
+                              fontWeight: sel && !same ? 600 : 400,
+                              transition: "border-color .1s, background .1s",
+                            }}>
+                            {!same && (
+                              <div style={{
+                                width: 14, height: 14, borderRadius: "50%", flexShrink: 0,
+                                border: "2px solid " + (sel ? "var(--accent)" : "var(--ink-4)"),
+                                background: sel ? "var(--accent)" : "transparent",
+                              }} />
+                            )}
+                            <span>{disp || <em style={{ color: "var(--ink-5)", fontStyle: "italic", fontWeight: 400 }}>{lang === "es" ? "vacío" : "empty"}</em>}</span>
+                            {same && <span style={{ fontSize: 10, color: "var(--ink-4)", marginLeft: "auto" }}>={lang === "es" ? "igual" : "same"}</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+
+          <div style={{ marginTop: 16, padding: "10px 14px", background: "var(--bg-soft)", borderRadius: 8, fontSize: 12, color: "var(--ink-3)" }}>
+            <strong>{lang === "es" ? "Se combinan siempre:" : "Always combined:"}</strong>
+            {" "}{lang === "es" ? "Etiquetas (unión) · Entidades vinculadas (unión) · Comentarios (todos)" : "Tags (union) · Linked entities (union) · Comments (all)"}
+          </div>
+        </div>
+
+        <div className="modal-foot">
+          <button className="btn" onClick={onCancel}>{t.common.cancel}</button>
+          <button className="btn btn-primary" onClick={handleConfirm}>
+            🔀 {lang === "es" ? "Fusionar con estos datos" : "Merge with these selections"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Duplicate Review Modal ───
 
 const DuplicateReviewModal = ({ pairs, data, onMerge, onDismiss, onClose, t, lang }) => {
@@ -167,8 +366,9 @@ const DuplicateReviewModal = ({ pairs, data, onMerge, onDismiss, onClose, t, lan
 
 // ─── Duplicates Page ───
 
-const DuplicatesPage = ({ pairs, data, onMerge, onDismiss, onUndismiss, onScanAll, onCreateDemo, t, lang }) => {
+const DuplicatesPage = ({ pairs, data, onMerge, onMergeWithData, onDismiss, onUndismiss, onScanAll, onCreateDemo, t, lang }) => {
   const [expanded, setExpanded] = React.useState(null);
+  const [mergingPair, setMergingPair] = React.useState(null);
 
   const active = pairs.filter(p => !p.dismissed);
   const dismissed = pairs.filter(p => p.dismissed);
@@ -268,8 +468,8 @@ const DuplicatesPage = ({ pairs, data, onMerge, onDismiss, onUndismiss, onScanAl
                           {lang === "es" ? "Son distintos" : "Different"}
                         </button>
                         <button className="btn btn-sm btn-primary"
-                          onClick={e => { e.stopPropagation(); toggle(key); }}>
-                          {lang === "es" ? "Revisar" : "Review"}
+                          onClick={e => { e.stopPropagation(); setMergingPair(pair); }}>
+                          ✎ {lang === "es" ? "Elegir datos" : "Choose data"}
                         </button>
                       </>
                     )}
@@ -320,12 +520,15 @@ const DuplicatesPage = ({ pairs, data, onMerge, onDismiss, onUndismiss, onScanAl
                         : "Merge combines data (non-empty fields preferred), joins tags, links and comments, and removes the duplicate record."}
                     </div>
 
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <button className="btn" onClick={() => { onDismiss(pair); setExpanded(null); }}>
                         👥 {lang === "es" ? "Son personas distintas" : "Different people"}
                       </button>
-                      <button className="btn btn-primary" onClick={() => { onMerge(pair.idA, pair.idB); setExpanded(null); }}>
-                        🔀 {lang === "es" ? "Fusionar — es la misma persona" : "Merge — same person"}
+                      <button className="btn" onClick={() => { onMerge(pair.idA, pair.idB); setExpanded(null); }}>
+                        🔀 {lang === "es" ? "Fusionar (auto)" : "Auto-merge"}
+                      </button>
+                      <button className="btn btn-primary" onClick={() => setMergingPair(pair)}>
+                        ✎ {lang === "es" ? "Elegir datos →" : "Choose data →"}
                       </button>
                     </div>
                   </div>
@@ -358,6 +561,25 @@ const DuplicatesPage = ({ pairs, data, onMerge, onDismiss, onUndismiss, onScanAl
           })}
         </div>
       )}
+
+      {/* ── MergeEditor overlay ── */}
+      {mergingPair && (() => {
+        const pA = data.personas.find(p => p.id === mergingPair.idA);
+        const pB = data.personas.find(p => p.id === mergingPair.idB);
+        if (!pA || !pB) { setMergingPair(null); return null; }
+        return (
+          <MergeEditor
+            pA={pA} pB={pB} data={data}
+            onConfirm={(keepId, dropId, mergedData) => {
+              onMergeWithData(keepId, dropId, mergedData);
+              setMergingPair(null);
+              setExpanded(null);
+            }}
+            onCancel={() => setMergingPair(null)}
+            t={t} lang={lang}
+          />
+        );
+      })()}
     </div>
   );
 };

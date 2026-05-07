@@ -334,6 +334,27 @@ const App = () => {
     setRoute({ name: "entities" });
   };
 
+  const handleMergeWithData = (keepId, dropId, mergedData) => {
+    setData(d => {
+      const mergedComments = [
+        ...(d.comments[keepId] || []),
+        ...(d.comments[dropId] || []),
+      ].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      const newComments = { ...d.comments, [keepId]: mergedComments };
+      delete newComments[dropId];
+      return {
+        ...d,
+        personas: d.personas.map(p => p.id === keepId ? mergedData : p).filter(p => p.id !== dropId),
+        comments: newComments,
+      };
+    });
+    setDupPairs(ps => ps
+      .map(p => (p.idA === keepId && p.idB === dropId) || (p.idA === dropId && p.idB === keepId) ? { ...p, dismissed: true } : p)
+      .filter(p => p.idA !== dropId && p.idB !== dropId)
+    );
+    if (route.id === dropId) setRoute({ name: "person", id: keepId });
+  };
+
   const handleMergePersonas = (idA, idB) => {
     setData(d => {
       const keep = d.personas.find(p => p.id === idA);
@@ -445,7 +466,7 @@ const App = () => {
     case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdatePerson={handleUpdatePerson} onEditPerson={handleEditPerson} onDeletePerson={handleDeletePerson} />; break;
     case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
-    case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;
+    case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onMergeWithData={handleMergeWithData} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;
   }
 
