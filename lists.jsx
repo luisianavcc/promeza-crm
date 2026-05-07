@@ -269,6 +269,8 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
   const [city, setCity] = React.useState("");
   const [zip, setZip] = React.useState("");
   const [tagFilter, setTagFilter] = React.useState("");
+  const [emailFilter, setEmailFilter] = React.useState("");
+  const [phoneFilter, setPhoneFilter] = React.useState("");
   const [q, setQ] = React.useState("");
   const [showFilters, setShowFilters] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
@@ -284,18 +286,20 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
     if (city && !(p.city || "").toLowerCase().includes(city.toLowerCase())) return false;
     if (zip && !(p.zip || "").toLowerCase().includes(zip.toLowerCase())) return false;
     if (tagFilter && !(p.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
+    if (emailFilter && !(p.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
+    if (phoneFilter && !(p.phone || "").toLowerCase().includes(phoneFilter.toLowerCase())) return false;
     if (q) {
-      const s = (fullName(p) + " " + (p.email || "") + " " + (p.city || "") + " " + (p.tags || []).join(" ")).toLowerCase();
+      const s = (fullName(p) + " " + (p.email || "") + " " + (p.phone || "") + " " + (p.city || "") + " " + (p.tags || []).join(" ")).toLowerCase();
       if (!s.includes(q.toLowerCase())) return false;
     }
     return true;
   });
 
-  const activeFilters = [role !== "all", country !== "all", status !== "all", langFilter !== "all", city, zip, tagFilter, q].filter(Boolean).length;
+  const activeFilters = [role !== "all", country !== "all", status !== "all", langFilter !== "all", city, zip, tagFilter, emailFilter, phoneFilter, q].filter(Boolean).length;
 
   const clearFilters = () => {
     setRole("all"); setCountry("all"); setStatus("all"); setLangFilter("all");
-    setCity(""); setZip(""); setTagFilter(""); setQ("");
+    setCity(""); setZip(""); setTagFilter(""); setEmailFilter(""); setPhoneFilter(""); setQ("");
   };
 
   const entityById = Object.fromEntries(data.entities.map(e => [e.id, e]));
@@ -381,8 +385,14 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
       {showFilters && (
         <div className="card" style={{ marginBottom: 12, padding: "16px 20px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px", marginBottom: 14 }}>
-            <FField label={lang === "es" ? "Buscar" : "Search"}>
+            <FField label={lang === "es" ? "Buscar (nombre, ciudad…)" : "Search (name, city…)"}>
               <input value={q} onChange={e => setQ(e.target.value)} placeholder={t.placeholders.search} />
+            </FField>
+            <FField label="Email">
+              <input value={emailFilter} onChange={e => setEmailFilter(e.target.value)} placeholder="@gmail.com, nombre…" />
+            </FField>
+            <FField label={lang === "es" ? "Teléfono" : "Phone"}>
+              <input value={phoneFilter} onChange={e => setPhoneFilter(e.target.value)} placeholder="+1 305…" />
             </FField>
             <FField label={lang === "es" ? "Ciudad" : "City"}>
               <input value={city} onChange={e => setCity(e.target.value)} placeholder="Miami, Bogotá…" />
@@ -517,6 +527,8 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
   const [city, setCity] = React.useState("");
   const [zip, setZip] = React.useState("");
   const [tagFilter, setTagFilter] = React.useState("");
+  const [emailFilter, setEmailFilter] = React.useState("");
+  const [phoneFilter, setPhoneFilter] = React.useState("");
   const [q, setQ] = React.useState("");
   const [showFilters, setShowFilters] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
@@ -536,18 +548,20 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
     if (city && !(e.city || "").toLowerCase().includes(city.toLowerCase())) return false;
     if (zip && !(e.zip || "").toLowerCase().includes(zip.toLowerCase())) return false;
     if (tagFilter && !(e.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
+    if (emailFilter && !(e.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
+    if (phoneFilter && !(e.phone || "").toLowerCase().includes(phoneFilter.toLowerCase())) return false;
     if (q) {
-      const s = (e.name + " " + (e.city || "") + " " + (e.country || "")).toLowerCase();
+      const s = (e.name + " " + (e.email || "") + " " + (e.phone || "") + " " + (e.city || "") + " " + (e.country || "")).toLowerCase();
       if (!s.includes(q.toLowerCase())) return false;
     }
     return true;
   });
 
-  const activeFilters = [type !== "all", country !== "all", status !== "all", city, zip, tagFilter, q].filter(Boolean).length;
+  const activeFilters = [type !== "all", country !== "all", status !== "all", city, zip, tagFilter, emailFilter, phoneFilter, q].filter(Boolean).length;
 
   const clearFilters = () => {
     setType("all"); setCountry("all"); setStatus("all");
-    setCity(""); setZip(""); setTagFilter(""); setQ("");
+    setCity(""); setZip(""); setTagFilter(""); setEmailFilter(""); setPhoneFilter(""); setQ("");
   };
 
   const doExportCSV = () => {
@@ -625,8 +639,14 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
       {showFilters && (
         <div className="card" style={{ marginBottom: 12, padding: "16px 20px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px", marginBottom: 14 }}>
-            <FField label={lang === "es" ? "Buscar" : "Search"}>
+            <FField label={lang === "es" ? "Buscar (nombre, ciudad…)" : "Search (name, city…)"}>
               <input value={q} onChange={e => setQ(e.target.value)} placeholder={t.placeholders.search} />
+            </FField>
+            <FField label="Email">
+              <input value={emailFilter} onChange={e => setEmailFilter(e.target.value)} placeholder="@iglesia.com…" />
+            </FField>
+            <FField label={lang === "es" ? "Teléfono" : "Phone"}>
+              <input value={phoneFilter} onChange={e => setPhoneFilter(e.target.value)} placeholder="+1 305…" />
             </FField>
             <FField label={lang === "es" ? "Ciudad" : "City"}>
               <input value={city} onChange={e => setCity(e.target.value)} placeholder="Miami, Bogotá…" />
