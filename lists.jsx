@@ -253,26 +253,50 @@ const ImportModal = ({ type, lang, onClose, onImport }) => {
   );
 };
 
+// ─── Shared filter field helpers ───
+const FField = ({ label, children }) => (
+  <div className="field" style={{ marginBottom: 0 }}>
+    <label style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--ink-3)", fontWeight: 600 }}>{label}</label>
+    {children}
+  </div>
+);
+
 const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
   const [role, setRole] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
+  const [langFilter, setLangFilter] = React.useState("all");
+  const [city, setCity] = React.useState("");
+  const [zip, setZip] = React.useState("");
+  const [tagFilter, setTagFilter] = React.useState("");
   const [q, setQ] = React.useState("");
+  const [showFilters, setShowFilters] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
 
-  const countries = ["all", ...new Set(data.personas.map(p => p.country))];
+  const countries = ["all", ...new Set(data.personas.map(p => p.country).filter(Boolean))];
   const roles = ["all", ...Object.keys(t.roles)];
 
   const rows = data.personas.filter(p => {
     if (role !== "all" && p.role !== role) return false;
     if (country !== "all" && p.country !== country) return false;
     if (status !== "all" && p.status !== status) return false;
+    if (langFilter !== "all" && p.language !== langFilter) return false;
+    if (city && !(p.city || "").toLowerCase().includes(city.toLowerCase())) return false;
+    if (zip && !(p.zip || "").toLowerCase().includes(zip.toLowerCase())) return false;
+    if (tagFilter && !(p.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (q) {
-      const s = (fullName(p) + " " + p.email + " " + p.city + " " + (p.tags || []).join(" ")).toLowerCase();
+      const s = (fullName(p) + " " + (p.email || "") + " " + (p.city || "") + " " + (p.tags || []).join(" ")).toLowerCase();
       if (!s.includes(q.toLowerCase())) return false;
     }
     return true;
   });
+
+  const activeFilters = [role !== "all", country !== "all", status !== "all", langFilter !== "all", city, zip, tagFilter, q].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setRole("all"); setCountry("all"); setStatus("all"); setLangFilter("all");
+    setCity(""); setZip(""); setTagFilter(""); setQ("");
+  };
 
   const entityById = Object.fromEntries(data.entities.map(e => [e.id, e]));
 
@@ -325,8 +349,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
       cumpleanos: p.birthday,
       ultimoContacto: p.lastContact,
     }));
-    const dateStr = new Date().toISOString().slice(0, 10);
-    exportCSV("promeza-personas-" + dateStr + ".csv", headers, csvRows);
+    exportCSV("promeza-personas-" + new Date().toISOString().slice(0, 10) + ".csv", headers, csvRows);
   };
 
   return (
@@ -334,9 +357,15 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
       <div className="page-head">
         <div>
           <h1 className="page-title">{t.nav.personas}</h1>
-          <div className="page-sub">{rows.length} {t.common.count.toLowerCase()}</div>
+          <div className="page-sub">
+            {rows.length} {t.common.count.toLowerCase()}
+            {activeFilters > 0 && <span style={{ color: "var(--accent)", fontWeight: 600 }}> · {activeFilters} {lang === "es" ? "filtros activos" : "active filters"}</span>}
+          </div>
         </div>
         <div className="page-actions">
+          <button className={"btn" + (showFilters || activeFilters > 0 ? " btn-primary" : "")} onClick={() => setShowFilters(v => !v)}>
+            <Icon name="filter" /> {lang === "es" ? "Filtrar" : "Filter"}{activeFilters > 0 ? ` (${activeFilters})` : ""}
+          </button>
           <button className="btn" onClick={doExportCSV} title={lang === "es" ? `Exportar ${rows.length} de ${data.personas.length} personas` : `Export ${rows.length} of ${data.personas.length} people`}>
             <Icon name="download" /> {t.common.exportCSV}{rows.length < data.personas.length ? ` (${rows.length})` : ""}
           </button>
@@ -348,6 +377,65 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
           </button>
         </div>
       </div>
+
+      {showFilters && (
+        <div className="card" style={{ marginBottom: 12, padding: "16px 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px", marginBottom: 14 }}>
+            <FField label={lang === "es" ? "Buscar" : "Search"}>
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder={t.placeholders.search} />
+            </FField>
+            <FField label={lang === "es" ? "Ciudad" : "City"}>
+              <input value={city} onChange={e => setCity(e.target.value)} placeholder="Miami, Bogotá…" />
+            </FField>
+            <FField label="ZIP">
+              <input value={zip} onChange={e => setZip(e.target.value)} placeholder="33101…" />
+            </FField>
+            <FField label={lang === "es" ? "País" : "Country"}>
+              <select value={country} onChange={e => setCountry(e.target.value)}>
+                {countries.map(c => <option key={c} value={c}>{c === "all" ? (lang === "es" ? "Todos" : "All") : c}</option>)}
+              </select>
+            </FField>
+            <FField label={t.common.language}>
+              <select value={langFilter} onChange={e => setLangFilter(e.target.value)}>
+                <option value="all">{lang === "es" ? "Todos" : "All"}</option>
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+            </FField>
+            <FField label={t.common.tags}>
+              <input value={tagFilter} onChange={e => setTagFilter(e.target.value)} placeholder={lang === "es" ? "vip, liderazgo…" : "vip, leadership…"} />
+            </FField>
+          </div>
+
+          <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", minWidth: 52 }}>{t.common.role}:</span>
+              {roles.map(r => (
+                <button key={r} className={"chip " + (role === r ? "on" : "")} onClick={() => setRole(r)}>
+                  {r === "all" ? t.common.all : t.roles[r]}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", minWidth: 52 }}>{t.common.status}:</span>
+              {["all", "activo", "inactivo"].map(s => (
+                <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>
+                  {s === "all" ? t.common.all : t.common[s === "activo" ? "activos" : "inactivos"]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button className="btn btn-sm" onClick={clearFilters} disabled={activeFilters === 0} style={{ opacity: activeFilters === 0 ? 0.4 : 1 }}>
+              <Icon name="x" /> {lang === "es" ? "Limpiar filtros" : "Clear filters"}
+            </button>
+            <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>
+              <strong style={{ color: "var(--ink-1)" }}>{rows.length}</strong> {lang === "es" ? "de" : "of"} {data.personas.length} {t.nav.personas.toLowerCase()} {lang === "es" ? "se exportarán" : "will be exported"}
+            </span>
+          </div>
+        </div>
+      )}
 
       {showImport && (
         <ImportModal
@@ -363,39 +451,6 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas }) => {
       )}
 
       <div className="card">
-        <div className="filters">
-          <div style={{ position: "relative", minWidth: 240 }}>
-            <span style={{ position: "absolute", left: 10, top: 8, color: "var(--ink-4)" }}><Icon name="search" /></span>
-            <input
-              value={q} onChange={e => setQ(e.target.value)}
-              placeholder={t.placeholders.search}
-              style={{ height: 32, padding: "0 10px 0 32px", border: "1px solid var(--line)", borderRadius: 8, fontSize: 13, background: "var(--bg-soft)", width: "100%" }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 600, marginRight: 4 }}>{t.common.role}:</span>
-            {roles.map(r => (
-              <button key={r} className={"chip " + (role === r ? "on" : "")} onClick={() => setRole(r)}>
-                {r === "all" ? t.common.all : t.roles[r]}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 600, marginRight: 4 }}>{t.common.status}:</span>
-            {["all", "activo", "inactivo"].map(s => (
-              <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>
-                {s === "all" ? t.common.all : t.common[s === "activo" ? "activos" : "inactivos"]}
-              </button>
-            ))}
-          </div>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-            <select value={country} onChange={e => setCountry(e.target.value)}
-              style={{ height: 32, padding: "0 10px", border: "1px solid var(--line)", borderRadius: 8, background: "#fff", fontSize: 13 }}>
-              {countries.map(c => <option key={c} value={c}>{c === "all" ? (lang === "es" ? "Todos los países" : "All countries") : c}</option>)}
-            </select>
-          </div>
-        </div>
-
         <table className="table">
           <thead>
             <tr>
@@ -459,11 +514,15 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
   const [type, setType] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
+  const [city, setCity] = React.useState("");
+  const [zip, setZip] = React.useState("");
+  const [tagFilter, setTagFilter] = React.useState("");
   const [q, setQ] = React.useState("");
+  const [showFilters, setShowFilters] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
 
   const types = ["all", ...Object.keys(t.types)];
-  const countries = ["all", ...new Set(data.entities.map(e => e.country))];
+  const countries = ["all", ...new Set(data.entities.map(e => e.country).filter(Boolean))];
 
   const personasByEntity = {};
   data.personas.forEach(p => (p.entities || []).forEach(le => {
@@ -474,12 +533,22 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
     if (type !== "all" && e.type !== type) return false;
     if (country !== "all" && e.country !== country) return false;
     if (status !== "all" && (e.status || "activo") !== status) return false;
+    if (city && !(e.city || "").toLowerCase().includes(city.toLowerCase())) return false;
+    if (zip && !(e.zip || "").toLowerCase().includes(zip.toLowerCase())) return false;
+    if (tagFilter && !(e.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (q) {
-      const s = (e.name + " " + e.city + " " + e.country).toLowerCase();
+      const s = (e.name + " " + (e.city || "") + " " + (e.country || "")).toLowerCase();
       if (!s.includes(q.toLowerCase())) return false;
     }
     return true;
   });
+
+  const activeFilters = [type !== "all", country !== "all", status !== "all", city, zip, tagFilter, q].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setType("all"); setCountry("all"); setStatus("all");
+    setCity(""); setZip(""); setTagFilter(""); setQ("");
+  };
 
   const doExportCSV = () => {
     const headers = [
@@ -524,8 +593,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
       etiquetas: (e.tags || []).join(", "),
       personasVinculadas: personasByEntity[e.id] || 0,
     }));
-    const dateStr = new Date().toISOString().slice(0, 10);
-    exportCSV("promeza-entidades-" + dateStr + ".csv", headers, csvRows);
+    exportCSV("promeza-entidades-" + new Date().toISOString().slice(0, 10) + ".csv", headers, csvRows);
   };
 
   return (
@@ -533,9 +601,15 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
       <div className="page-head">
         <div>
           <h1 className="page-title">{t.nav.entities}</h1>
-          <div className="page-sub">{rows.length} {t.common.count.toLowerCase()}</div>
+          <div className="page-sub">
+            {rows.length} {t.common.count.toLowerCase()}
+            {activeFilters > 0 && <span style={{ color: "var(--accent)", fontWeight: 600 }}> · {activeFilters} {lang === "es" ? "filtros activos" : "active filters"}</span>}
+          </div>
         </div>
         <div className="page-actions">
+          <button className={"btn" + (showFilters || activeFilters > 0 ? " btn-primary" : "")} onClick={() => setShowFilters(v => !v)}>
+            <Icon name="filter" /> {lang === "es" ? "Filtrar" : "Filter"}{activeFilters > 0 ? ` (${activeFilters})` : ""}
+          </button>
           <button className="btn" onClick={doExportCSV} title={lang === "es" ? `Exportar ${rows.length} de ${data.entities.length} entidades` : `Export ${rows.length} of ${data.entities.length} entities`}>
             <Icon name="download" /> {t.common.exportCSV}{rows.length < data.entities.length ? ` (${rows.length})` : ""}
           </button>
@@ -547,6 +621,58 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
           </button>
         </div>
       </div>
+
+      {showFilters && (
+        <div className="card" style={{ marginBottom: 12, padding: "16px 20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px 16px", marginBottom: 14 }}>
+            <FField label={lang === "es" ? "Buscar" : "Search"}>
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder={t.placeholders.search} />
+            </FField>
+            <FField label={lang === "es" ? "Ciudad" : "City"}>
+              <input value={city} onChange={e => setCity(e.target.value)} placeholder="Miami, Bogotá…" />
+            </FField>
+            <FField label="ZIP">
+              <input value={zip} onChange={e => setZip(e.target.value)} placeholder="33101…" />
+            </FField>
+            <FField label={lang === "es" ? "País" : "Country"}>
+              <select value={country} onChange={e => setCountry(e.target.value)}>
+                {countries.map(c => <option key={c} value={c}>{c === "all" ? (lang === "es" ? "Todos" : "All") : c}</option>)}
+              </select>
+            </FField>
+            <FField label={t.common.tags}>
+              <input value={tagFilter} onChange={e => setTagFilter(e.target.value)} placeholder={lang === "es" ? "hispana, matriz…" : "hispanic, main…"} />
+            </FField>
+          </div>
+
+          <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", minWidth: 52 }}>{t.common.type}:</span>
+              {types.map(tp => (
+                <button key={tp} className={"chip " + (type === tp ? "on" : "")} onClick={() => setType(tp)}>
+                  {tp === "all" ? t.common.all : t.types[tp]}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", minWidth: 52 }}>{t.common.status}:</span>
+              {["all", "activo", "inactivo"].map(s => (
+                <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>
+                  {s === "all" ? t.common.all : t.common[s === "activo" ? "activos" : "inactivos"]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button className="btn btn-sm" onClick={clearFilters} disabled={activeFilters === 0} style={{ opacity: activeFilters === 0 ? 0.4 : 1 }}>
+              <Icon name="x" /> {lang === "es" ? "Limpiar filtros" : "Clear filters"}
+            </button>
+            <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>
+              <strong style={{ color: "var(--ink-1)" }}>{rows.length}</strong> {lang === "es" ? "de" : "of"} {data.entities.length} {t.nav.entities.toLowerCase()} {lang === "es" ? "se exportarán" : "will be exported"}
+            </span>
+          </div>
+        </div>
+      )}
 
       {showImport && (
         <ImportModal
@@ -562,36 +688,6 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities }) => {
       )}
 
       <div className="card">
-        <div className="filters">
-          <div style={{ position: "relative", minWidth: 240 }}>
-            <span style={{ position: "absolute", left: 10, top: 8, color: "var(--ink-4)" }}><Icon name="search" /></span>
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder={t.placeholders.search}
-              style={{ height: 32, padding: "0 10px 0 32px", border: "1px solid var(--line)", borderRadius: 8, fontSize: 13, background: "var(--bg-soft)", width: "100%" }} />
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 600, marginRight: 4 }}>{t.common.type}:</span>
-            {types.map(tp => (
-              <button key={tp} className={"chip " + (type === tp ? "on" : "")} onClick={() => setType(tp)}>
-                {tp === "all" ? t.common.all : t.types[tp]}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 600, marginRight: 4 }}>{t.common.status}:</span>
-            {["all", "activo", "inactivo"].map(s => (
-              <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>
-                {s === "all" ? t.common.all : t.common[s === "activo" ? "activos" : "inactivos"]}
-              </button>
-            ))}
-          </div>
-          <div style={{ marginLeft: "auto" }}>
-            <select value={country} onChange={e => setCountry(e.target.value)}
-              style={{ height: 32, padding: "0 10px", border: "1px solid var(--line)", borderRadius: 8, background: "#fff", fontSize: 13 }}>
-              {countries.map(c => <option key={c} value={c}>{c === "all" ? (lang === "es" ? "Todos los países" : "All countries") : c}</option>)}
-            </select>
-          </div>
-        </div>
-
         <table className="table">
           <thead>
             <tr>
