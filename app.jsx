@@ -204,12 +204,21 @@ const App = () => {
   const [data, setData] = useState(() => {
     try {
       const saved = localStorage.getItem("promeza_data");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          interactions: parsed.interactions || {},
+          tasks: parsed.tasks || {},
+        };
+      }
     } catch {}
     return {
       personas: [...window.PROMEZA_DATA.personas],
       entities: [...window.PROMEZA_DATA.entities],
       comments: { ...window.PROMEZA_DATA.comments },
+      interactions: {},
+      tasks: {},
     };
   });
 
@@ -332,6 +341,57 @@ const App = () => {
     if (!confirm(lang === "es" ? "¿Eliminar esta entidad? Esta acción no se puede deshacer." : "Delete this entity? This cannot be undone.")) return;
     setData(d => ({ ...d, entities: d.entities.filter(e => e.id !== id) }));
     setRoute({ name: "entities" });
+  };
+
+  const addInteraction = (personId, interaction) => {
+    setData(d => ({
+      ...d,
+      interactions: { ...d.interactions, [personId]: [interaction, ...(d.interactions[personId] || [])] },
+    }));
+  };
+
+  const deleteInteraction = (personId, id) => {
+    setData(d => ({
+      ...d,
+      interactions: { ...d.interactions, [personId]: (d.interactions[personId] || []).filter(i => i.id !== id) },
+    }));
+  };
+
+  const addTask = (personId, task) => {
+    setData(d => ({
+      ...d,
+      tasks: { ...d.tasks, [personId]: [...(d.tasks[personId] || []), task] },
+    }));
+  };
+
+  const toggleTask = (personId, id) => {
+    setData(d => ({
+      ...d,
+      tasks: { ...d.tasks, [personId]: (d.tasks[personId] || []).map(tk => tk.id === id ? { ...tk, done: !tk.done } : tk) },
+    }));
+  };
+
+  const deleteTask = (personId, id) => {
+    setData(d => ({
+      ...d,
+      tasks: { ...d.tasks, [personId]: (d.tasks[personId] || []).filter(tk => tk.id !== id) },
+    }));
+  };
+
+  const handleBulkDeletePersonas = (ids) => {
+    if (!confirm(lang === "es" ? `¿Eliminar ${ids.size} personas seleccionadas? Esta acción no se puede deshacer.` : `Delete ${ids.size} selected people? This cannot be undone.`)) return;
+    setData(d => ({ ...d, personas: d.personas.filter(p => !ids.has(p.id)) }));
+  };
+
+  const handleBulkUpdatePersonas = (ids, updates) => {
+    setData(d => ({ ...d, personas: d.personas.map(p => ids.has(p.id) ? { ...p, ...updates } : p) }));
+  };
+
+  const handleBulkAddTagPersonas = (ids, tag) => {
+    setData(d => ({
+      ...d,
+      personas: d.personas.map(p => ids.has(p.id) ? { ...p, tags: [...new Set([...(p.tags || []), tag])] } : p),
+    }));
   };
 
   const handleMergeWithData = (keepId, dropId, mergedData) => {
@@ -461,9 +521,18 @@ const App = () => {
   let view;
   switch (route.name) {
     case "home": view = <Home t={t} lang={lang} data={data} go={go} />; break;
-    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} globalQ={query} />; break;
+    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} globalQ={query} onBulkDelete={handleBulkDeletePersonas} onBulkUpdateStatus={handleBulkUpdatePersonas} onBulkAddTag={handleBulkAddTagPersonas} />; break;
     case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} onImportEntities={handleImportEntities} globalQ={query} />; break;
-    case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdatePerson={handleUpdatePerson} onEditPerson={handleEditPerson} onDeletePerson={handleDeletePerson} />; break;
+    case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment}
+      onUpdatePerson={handleUpdatePerson} onEditPerson={handleEditPerson} onDeletePerson={handleDeletePerson}
+      interactions={data.interactions[route.id] || []}
+      onAddInteraction={(item) => addInteraction(route.id, item)}
+      onDeleteInteraction={(id) => deleteInteraction(route.id, id)}
+      tasks={data.tasks[route.id] || []}
+      onAddTask={(task) => addTask(route.id, task)}
+      onToggleTask={(id) => toggleTask(route.id, id)}
+      onDeleteTask={(id) => deleteTask(route.id, id)}
+    />; break;
     case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
     case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onMergeWithData={handleMergeWithData} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;

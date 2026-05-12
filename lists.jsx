@@ -261,7 +261,7 @@ const FField = ({ label, children }) => (
   </div>
 );
 
-const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "" }) => {
+const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBulkDelete, onBulkUpdateStatus, onBulkAddTag }) => {
   const [role, setRole] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
@@ -274,6 +274,9 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "" }) => 
   const [q, setQ] = React.useState("");
   const [showFilters, setShowFilters] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
+  const [selected, setSelected] = React.useState(new Set());
+  const [bulkTag, setBulkTag] = React.useState("");
+  const [showBulkTagInput, setShowBulkTagInput] = React.useState(false);
 
   const countries = ["all", ...new Set(data.personas.map(p => p.country).filter(Boolean))];
   const roles = ["all", ...Object.keys(t.roles)];
@@ -302,6 +305,19 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "" }) => 
   };
 
   const entityById = Object.fromEntries(data.entities.map(e => [e.id, e]));
+
+  const toggleSelect = (e, id) => {
+    e.stopPropagation();
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelected(selected.size === rows.length ? new Set() : new Set(rows.map(p => p.id)));
+  };
 
   const doExportCSV = () => {
     const headers = [
@@ -459,10 +475,82 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "" }) => 
         />
       )}
 
+      {selected.size > 0 && (
+        <div style={{
+          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+          background: "#0f1530", color: "#fff",
+          borderRadius: 12, padding: "12px 20px",
+          display: "flex", alignItems: "center", gap: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.3)", zIndex: 900,
+          flexWrap: "wrap",
+        }}>
+          <span style={{ fontWeight: 600, fontSize: 13, whiteSpace: "nowrap" }}>{selected.size} {lang === "es" ? "seleccionadas" : "selected"}</span>
+          <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.2)" }} />
+          <button className="btn btn-sm" style={{ color: "#86efac", borderColor: "rgba(134,239,172,0.4)", background: "transparent" }}
+            onClick={() => { onBulkUpdateStatus && onBulkUpdateStatus(selected, { status: "activo" }); setSelected(new Set()); }}>
+            <Icon name="check" /> {lang === "es" ? "Activar" : "Activate"}
+          </button>
+          <button className="btn btn-sm" style={{ color: "#fca5a5", borderColor: "rgba(252,165,165,0.4)", background: "transparent" }}
+            onClick={() => { onBulkUpdateStatus && onBulkUpdateStatus(selected, { status: "inactivo" }); setSelected(new Set()); }}>
+            <Icon name="x" /> {lang === "es" ? "Inactivar" : "Deactivate"}
+          </button>
+          {!showBulkTagInput ? (
+            <button className="btn btn-sm" style={{ color: "#fde68a", borderColor: "rgba(253,230,138,0.4)", background: "transparent" }}
+              onClick={() => setShowBulkTagInput(true)}>
+              <Icon name="tag" /> {lang === "es" ? "Etiquetar" : "Tag"}
+            </button>
+          ) : (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                autoFocus
+                value={bulkTag}
+                onChange={e => setBulkTag(e.target.value)}
+                placeholder={lang === "es" ? "etiqueta…" : "tag…"}
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 13, width: 120, fontFamily: "inherit" }}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && bulkTag.trim()) {
+                    onBulkAddTag && onBulkAddTag(selected, bulkTag.trim());
+                    setBulkTag(""); setShowBulkTagInput(false); setSelected(new Set());
+                  }
+                  if (e.key === "Escape") { setShowBulkTagInput(false); setBulkTag(""); }
+                }}
+              />
+              <button className="btn btn-sm" style={{ color: "#fff", borderColor: "rgba(255,255,255,0.3)", background: "transparent" }}
+                disabled={!bulkTag.trim()}
+                onClick={() => {
+                  onBulkAddTag && onBulkAddTag(selected, bulkTag.trim());
+                  setBulkTag(""); setShowBulkTagInput(false); setSelected(new Set());
+                }}>OK</button>
+              <button className="btn btn-sm" style={{ color: "rgba(255,255,255,0.5)", borderColor: "transparent", background: "transparent" }}
+                onClick={() => { setShowBulkTagInput(false); setBulkTag(""); }}>
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+          )}
+          <button className="btn btn-sm" style={{ color: "#fca5a5", borderColor: "rgba(252,165,165,0.4)", background: "transparent" }}
+            onClick={() => { onBulkDelete && onBulkDelete(selected); setSelected(new Set()); }}>
+            <Icon name="trash" /> {lang === "es" ? "Eliminar" : "Delete"}
+          </button>
+          <button className="btn btn-sm" style={{ color: "rgba(255,255,255,0.45)", borderColor: "transparent", background: "transparent" }}
+            onClick={() => setSelected(new Set())}>
+            <Icon name="x" />
+          </button>
+        </div>
+      )}
+
       <div className="card">
         <table className="table">
           <thead>
             <tr>
+              <th style={{ width: 32, paddingRight: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={rows.length > 0 && selected.size === rows.length}
+                  ref={el => { if (el) el.indeterminate = selected.size > 0 && selected.size < rows.length; }}
+                  onChange={toggleSelectAll}
+                  style={{ cursor: "pointer" }}
+                />
+              </th>
               <th style={{ width: 280 }}>{t.common.profile}</th>
               <th>{t.common.role}</th>
               <th>{t.common.relatedEntities}</th>
@@ -474,7 +562,16 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "" }) => 
           </thead>
           <tbody>
             {rows.map(p => (
-              <tr key={p.id} onClick={() => go({ name: "person", id: p.id })}>
+              <tr key={p.id} onClick={() => go({ name: "person", id: p.id })}
+                style={{ background: selected.has(p.id) ? "var(--accent-50)" : undefined }}>
+                <td style={{ paddingRight: 0 }} onClick={e => toggleSelect(e, p.id)}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(p.id)}
+                    onChange={() => {}}
+                    style={{ cursor: "pointer" }}
+                  />
+                </td>
                 <td>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div className="av-circle" style={{ background: p.color }}>{initials(fullName(p))}</div>

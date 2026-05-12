@@ -68,7 +68,9 @@ const Comments = ({ items, t, lang, onAdd }) => {
 
 // ─── PERSON PROFILE ───
 
-const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEditPerson, onDeletePerson }) => {
+const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEditPerson, onDeletePerson,
+  interactions, onAddInteraction, onDeleteInteraction,
+  tasks, onAddTask, onToggleTask, onDeleteTask }) => {
   const p = data.personas.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
   const [linking, setLinking] = React.useState(false);
@@ -93,9 +95,12 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
     link: le, entity: data.entities.find(e => e.id === le.id),
   })).filter(x => x.entity);
 
+  const pendingTasks = (tasks || []).filter(tk => !tk.done).length;
   const tabs = [
     { id: "details", label: t.common.details },
     { id: "links", label: t.common.relatedEntities + " (" + linkedEntities.length + ")" },
+    { id: "interactions", label: (lang === "es" ? "Interacciones" : "Interactions") + " (" + (interactions || []).length + ")" },
+    { id: "tasks", label: (lang === "es" ? "Tareas" : "Tasks") + (pendingTasks > 0 ? " (" + pendingTasks + ")" : "") },
     { id: "comments", label: t.common.comments + " (" + (data.comments[p.id] || []).length + ")" },
     { id: "map", label: t.common.map },
   ];
@@ -263,6 +268,27 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
             ))}
           </div>
         </div>
+      )}
+
+      {tab === "interactions" && (
+        <InteractionsTab
+          personId={p.id}
+          interactions={interactions}
+          onAdd={onAddInteraction}
+          onDelete={onDeleteInteraction}
+          lang={lang}
+        />
+      )}
+
+      {tab === "tasks" && (
+        <TasksTab
+          personId={p.id}
+          tasks={tasks}
+          onAddTask={onAddTask}
+          onToggleTask={onToggleTask}
+          onDeleteTask={onDeleteTask}
+          lang={lang}
+        />
       )}
 
       {tab === "comments" && (
