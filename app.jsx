@@ -179,6 +179,40 @@ const SettingsModal = ({ t, lang, data, onClose, onLogout }) => {
   );
 };
 
+// ─── Changelog helpers ───
+
+const PERSON_FIELD_LABELS = {
+  first: "Nombre", last: "Apellido", email: "Email", phone: "Teléfono",
+  role: "Cargo", status: "Estado", address: "Dirección", city: "Ciudad",
+  state: "Estado/Prov.", country: "País", zip: "ZIP", website: "Sitio web",
+  birthday: "Cumpleaños", lastContact: "Último contacto", language: "Idioma",
+  tags: "Etiquetas", entities: "Entidades",
+};
+
+const ENTITY_FIELD_LABELS = {
+  name: "Nombre", type: "Tipo", email: "Email", phone: "Teléfono",
+  address: "Dirección", city: "Ciudad", state: "Estado/Prov.", country: "País",
+  zip: "ZIP", website: "Sitio web", founded: "Año fundación",
+  size: "Tamaño", tags: "Etiquetas", status: "Estado",
+};
+
+const computeChanges = (oldObj, updates, fieldLabels) => {
+  const changes = [];
+  for (const key of Object.keys(updates)) {
+    const label = fieldLabels[key];
+    if (!label) continue;
+    const oldVal = oldObj[key];
+    const newVal = updates[key];
+    if (key === "tags" || key === "entities") {
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) changes.push({ field: label, type: key });
+    } else {
+      const o = String(oldVal ?? ""), n = String(newVal ?? "");
+      if (o !== n) changes.push({ field: label, old: o, new: n });
+    }
+  }
+  return changes;
+};
+
 // ─── App Root ───
 
 const App = () => {
@@ -210,6 +244,7 @@ const App = () => {
           ...parsed,
           interactions: parsed.interactions || {},
           tasks: parsed.tasks || {},
+          changelog: parsed.changelog || {},
         };
       }
     } catch {}
@@ -219,6 +254,7 @@ const App = () => {
       comments: { ...window.PROMEZA_DATA.comments },
       interactions: {},
       tasks: {},
+      changelog: {},
     };
   });
 
@@ -262,12 +298,14 @@ const App = () => {
       birthday: form.birthday, lastContact: form.lastContact,
       color,
     };
+    const createdAt = new Date().toISOString();
     setData(d => {
       const next = { ...d, personas: [newP, ...d.personas] };
       const pairs = findDuplicatePairs(next.personas, dupPairs);
       if (pairs.length > 0) {
         setDupPairs(prev => { const existing = new Set(prev.map(p => p.idA+"|"+p.idB)); return [...prev, ...pairs.filter(p => !existing.has(p.idA+"|"+p.idB))]; });
       }
+      next.changelog = { ...(next.changelog || {}), [id]: [{ id: "cl" + id, date: createdAt, author: userEmail || "Usuario", changes: [{ field: "record", type: "created" }] }] };
       return next;
     });
     setModal(null);
@@ -287,7 +325,12 @@ const App = () => {
       founded: form.founded, parent: form.parent || null,
       tags, status: "activo",
     };
-    setData(d => ({ ...d, entities: [newE, ...d.entities] }));
+    const createdAtE = new Date().toISOString();
+    setData(d => {
+      const next = { ...d, entities: [newE, ...d.entities] };
+      next.changelog = { ...(next.changelog || {}), [id]: [{ id: "cl" + id, date: createdAtE, author: userEmail || "Usuario", changes: [{ field: "record", type: "created" }] }] };
+      return next;
+    });
     setModal(null);
     setRoute({ name: "entity", id });
   };
@@ -310,11 +353,27 @@ const App = () => {
   };
 
   const handleUpdatePerson = (id, updates) => {
-    setData(d => ({ ...d, personas: d.personas.map(p => p.id === id ? { ...p, ...updates } : p) }));
+    setData(d => {
+      const old = d.personas.find(p => p.id === id);
+      const changes = old ? computeChanges(old, updates, PERSON_FIELD_LABELS) : [];
+      const cl = changes.length > 0 ? {
+        ...d.changelog,
+        [id]: [{ id: "cl" + Date.now(), date: new Date().toISOString(), author: userEmail || "Usuario", changes }, ...(d.changelog[id] || [])],
+      } : d.changelog;
+      return { ...d, personas: d.personas.map(p => p.id === id ? { ...p, ...updates } : p), changelog: cl };
+    });
   };
 
   const handleUpdateEntity = (id, updates) => {
-    setData(d => ({ ...d, entities: d.entities.map(e => e.id === id ? { ...e, ...updates } : e) }));
+    setData(d => {
+      const old = d.entities.find(e => e.id === id);
+      const changes = old ? computeChanges(old, updates, ENTITY_FIELD_LABELS) : [];
+      const cl = changes.length > 0 ? {
+        ...d.changelog,
+        [id]: [{ id: "cl" + Date.now(), date: new Date().toISOString(), author: userEmail || "Usuario", changes }, ...(d.changelog[id] || [])],
+      } : d.changelog;
+      return { ...d, entities: d.entities.map(e => e.id === id ? { ...e, ...updates } : e), changelog: cl };
+    });
   };
 
   const handleEditPerson = (id) => { setEditingId(id); setModal("edit-person"); };
@@ -532,8 +591,9 @@ const App = () => {
       onAddTask={(task) => addTask(route.id, task)}
       onToggleTask={(id) => toggleTask(route.id, id)}
       onDeleteTask={(id) => deleteTask(route.id, id)}
+      changelog={data.changelog[route.id] || []}
     />; break;
-    case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} />; break;
+    case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} changelog={data.changelog[route.id] || []} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
     case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onMergeWithData={handleMergeWithData} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;

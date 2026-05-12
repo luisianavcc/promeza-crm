@@ -68,9 +68,59 @@ const Comments = ({ items, t, lang, onAdd }) => {
 
 // ─── PERSON PROFILE ───
 
+const ChangelogTab = ({ changelog, lang }) => {
+  const entries = changelog || [];
+  const fmtDate = (iso) => {
+    try { return new Date(iso).toLocaleString(lang === "en" ? "en-US" : "es-ES", { dateStyle: "medium", timeStyle: "short" }); }
+    catch { return iso; }
+  };
+  return (
+    <div className="section">
+      <h3>
+        {lang === "es" ? "Historial de cambios" : "Change history"}
+        <span className="muted mono" style={{ fontSize: 11, marginLeft: 8 }}>{entries.length}</span>
+      </h3>
+      <div className="section-body">
+        {entries.length === 0 && <div className="empty">{lang === "es" ? "Sin cambios registrados" : "No changes recorded"}</div>}
+        <div className="timeline">
+          {entries.map((entry, i) => (
+            <div key={entry.id || i} className="comment">
+              <div className="av-circle" style={{ background: "#0f1530" }}>{initials(entry.author)}</div>
+              <div className="body">
+                <div className="head">
+                  <span className="who">{entry.author}</span>
+                  <span className="when">{fmtDate(entry.date)}</span>
+                </div>
+                <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
+                  {entry.changes.map((ch, j) => (
+                    <div key={j} style={{ fontSize: 12.5, color: "var(--ink-2)" }}>
+                      {ch.type === "created" ? (
+                        <span style={{ fontWeight: 600, color: "var(--good)" }}>✓ {lang === "es" ? "Registro creado" : "Record created"}</span>
+                      ) : ch.type === "tags" || ch.type === "entities" ? (
+                        <span><span style={{ fontWeight: 600 }}>{ch.field}</span><span style={{ color: "var(--accent)", marginLeft: 6 }}>{lang === "es" ? "actualizado" : "updated"}</span></span>
+                      ) : (
+                        <span>
+                          <span style={{ fontWeight: 600 }}>{ch.field}:</span>
+                          <span style={{ color: "var(--ink-4)", margin: "0 5px" }}>{ch.old || "—"}</span>
+                          <span style={{ color: "var(--ink-4)" }}>→</span>
+                          <span style={{ color: "var(--good)", marginLeft: 5 }}>{ch.new || "—"}</span>
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEditPerson, onDeletePerson,
   interactions, onAddInteraction, onDeleteInteraction,
-  tasks, onAddTask, onToggleTask, onDeleteTask }) => {
+  tasks, onAddTask, onToggleTask, onDeleteTask, changelog }) => {
   const p = data.personas.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
   const [linking, setLinking] = React.useState(false);
@@ -102,6 +152,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
     { id: "interactions", label: (lang === "es" ? "Interacciones" : "Interactions") + " (" + (interactions || []).length + ")" },
     { id: "tasks", label: (lang === "es" ? "Tareas" : "Tasks") + (pendingTasks > 0 ? " (" + pendingTasks + ")" : "") },
     { id: "comments", label: t.common.comments + " (" + (data.comments[p.id] || []).length + ")" },
+    { id: "history", label: lang === "es" ? "Cambios" : "Changes" },
     { id: "map", label: t.common.map },
   ];
 
@@ -300,6 +351,8 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
         </div>
       )}
 
+      {tab === "history" && <ChangelogTab changelog={changelog} lang={lang} />}
+
       {tab === "map" && (
         <div className="section">
           <h3>{t.common.map}</h3>
@@ -314,7 +367,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
 
 // ─── ENTITY PROFILE ───
 
-const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUpdatePerson, onEditEntity, onDeleteEntity }) => {
+const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUpdatePerson, onEditEntity, onDeleteEntity, changelog }) => {
   const e = data.entities.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
   const [linking, setLinking] = React.useState(false);
@@ -355,6 +408,7 @@ const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUp
     { id: "details", label: t.common.details },
     { id: "people", label: t.common.relatedPersonas + " (" + linkedPeople.length + ")" },
     { id: "comments", label: t.common.comments + " (" + (data.comments[e.id] || []).length + ")" },
+    { id: "history", label: lang === "es" ? "Cambios" : "Changes" },
     { id: "map", label: t.common.map },
   ];
 
@@ -574,6 +628,8 @@ const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUp
           </div>
         </div>
       )}
+
+      {tab === "history" && <ChangelogTab changelog={changelog} lang={lang} />}
 
       {tab === "map" && (
         <div className="section">
