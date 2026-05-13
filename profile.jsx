@@ -120,7 +120,7 @@ const ChangelogTab = ({ changelog, lang }) => {
 
 const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEditPerson, onDeletePerson,
   interactions, onAddInteraction, onDeleteInteraction,
-  tasks, onAddTask, onToggleTask, onDeleteTask, changelog }) => {
+  tasks, onAddTask, onToggleTask, onDeleteTask, changelog, users, currentUser }) => {
   const p = data.personas.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
   const [linking, setLinking] = React.useState(false);
@@ -339,6 +339,8 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
           onToggleTask={onToggleTask}
           onDeleteTask={onDeleteTask}
           lang={lang}
+          users={users}
+          currentUser={currentUser}
         />
       )}
 

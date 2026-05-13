@@ -5,6 +5,7 @@ const Sidebar = ({ route, go, t, counts }) => {
     { id: "home", label: t.nav.home, icon: "home" },
     { id: "personas", label: t.nav.personas, icon: "users", count: counts.personas },
     { id: "entities", label: t.nav.entities, icon: "building", count: counts.entities },
+    { id: "tasks", label: t.nav.tasks || "Tareas", icon: "check", count: counts.pendingTasks || null, countStyle: counts.overdueCount > 0 ? { background: "#ef4444" } : null },
     { id: "map", label: t.nav.map, icon: "map" },
   ];
   return (
@@ -26,7 +27,7 @@ const Sidebar = ({ route, go, t, counts }) => {
           >
             <span className="dot"><Icon name={it.icon} /></span>
             <span>{it.label}</span>
-            {it.count != null && <span className="badge">{it.count}</span>}
+            {it.count != null && it.count > 0 && <span className="badge" style={it.countStyle || {}}>{it.count}</span>}
           </div>
         ))}
       </div>

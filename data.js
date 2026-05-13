@@ -197,3 +197,11 @@ window.PROMEZA_DATA = (function () {
 
   return { entities, personas, comments };
 })();
+
+// ─── Users (fixed list — edit here to add/remove accounts) ───
+window.PROMEZA_USERS = [
+  { email: "betty@promeza.com",  name: "Betty García",   role: "admin"  },
+  { email: "andrea@promeza.com", name: "Andrea Lozano",  role: "editor" },
+  { email: "tomas@promeza.com",  name: "Tomás Iturbe",   role: "editor" },
+  { email: "priscila@promeza.com", name: "Priscila Núñez", role: "viewer" },
+];

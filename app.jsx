@@ -269,7 +269,10 @@ const App = () => {
     window.scrollTo({ top: 0 });
   };
 
-  const counts = { personas: data.personas.length, entities: data.entities.length, dups: dupPairs.filter(p => !p.dismissed).length };
+  const allTasksFlat = Object.values(data.tasks).flat();
+  const pendingTasks = allTasksFlat.filter(t => !t.done).length;
+  const overdueCount = allTasksFlat.filter(t => t.due && !t.done && t.due < new Date().toISOString().slice(0, 10)).length;
+  const counts = { personas: data.personas.length, entities: data.entities.length, dups: dupPairs.filter(p => !p.dismissed).length, pendingTasks: pendingTasks || null, overdueCount };
 
   const addComment = (targetId, text) => {
     setData(d => {
@@ -592,6 +595,11 @@ const App = () => {
       onToggleTask={(id) => toggleTask(route.id, id)}
       onDeleteTask={(id) => deleteTask(route.id, id)}
       changelog={data.changelog[route.id] || []}
+      users={window.PROMEZA_USERS || []} currentUser={userEmail}
+    />; break;
+    case "tasks": view = <GlobalTasksView t={t} lang={lang} data={data} go={go}
+      tasks={data.tasks} users={window.PROMEZA_USERS || []} currentUser={userEmail}
+      onAddTask={addTask} onToggleTask={toggleTask} onDeleteTask={deleteTask}
     />; break;
     case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} changelog={data.changelog[route.id] || []} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;

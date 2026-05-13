@@ -152,9 +152,10 @@ const InteractionsTab = ({ personId, interactions, onAdd, onDelete, lang }) => {
   );
 };
 
-const TasksTab = ({ personId, tasks, onAddTask, onToggleTask, onDeleteTask, lang }) => {
+const TasksTab = ({ personId, tasks, onAddTask, onToggleTask, onDeleteTask, lang, users, currentUser }) => {
   const [text, setText] = React.useState("");
   const [due, setDue] = React.useState("");
+  const [assignedTo, setAssignedTo] = React.useState(currentUser || "");
 
   const items = tasks || [];
   const today = new Date().toISOString().slice(0, 10);
@@ -166,10 +167,14 @@ const TasksTab = ({ personId, tasks, onAddTask, onToggleTask, onDeleteTask, lang
   const done = items.filter(t => t.done);
 
   const isOverdue = (task) => task.due && !task.done && task.due < today;
+  const userLabel = (email) => {
+    const u = (users || []).find(x => x.email === email);
+    return u ? u.name.split(" ")[0] : (email || "").split("@")[0];
+  };
 
   const doAdd = () => {
     if (!text.trim()) return;
-    onAddTask({ id: "t" + Date.now(), text: text.trim(), due, done: false, createdAt: today });
+    onAddTask({ id: "t" + Date.now(), text: text.trim(), due, done: false, createdAt: today, assignedTo: assignedTo || null });
     setText("");
     setDue("");
   };
@@ -185,23 +190,34 @@ const TasksTab = ({ personId, tasks, onAddTask, onToggleTask, onDeleteTask, lang
         )}
       </h3>
 
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", display: "flex", gap: 8, alignItems: "flex-end", background: "var(--bg-soft)" }}>
-        <div className="field" style={{ margin: 0, flex: 1 }}>
-          <label style={{ fontSize: 11 }}>{lang === "es" ? "Nueva tarea" : "New task"}</label>
-          <input
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && doAdd()}
-            placeholder={lang === "es" ? "Ej: Llamar para hacer seguimiento…" : "E.g. Call for follow-up…"}
-          />
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", background: "var(--bg-soft)" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <div className="field" style={{ margin: 0, flex: 1 }}>
+            <label style={{ fontSize: 11 }}>{lang === "es" ? "Nueva tarea" : "New task"}</label>
+            <input
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && doAdd()}
+              placeholder={lang === "es" ? "Ej: Llamar para hacer seguimiento…" : "E.g. Call for follow-up…"}
+            />
+          </div>
+          <div className="field" style={{ margin: 0, width: 130 }}>
+            <label style={{ fontSize: 11 }}>{lang === "es" ? "Fecha límite" : "Due date"}</label>
+            <input type="date" value={due} onChange={e => setDue(e.target.value)} />
+          </div>
+          <button className="btn btn-primary" style={{ flexShrink: 0 }} disabled={!text.trim()} onClick={doAdd}>
+            <Icon name="plus" />
+          </button>
         </div>
-        <div className="field" style={{ margin: 0, width: 140 }}>
-          <label style={{ fontSize: 11 }}>{lang === "es" ? "Fecha límite" : "Due date"}</label>
-          <input type="date" value={due} onChange={e => setDue(e.target.value)} />
-        </div>
-        <button className="btn btn-primary" style={{ flexShrink: 0 }} disabled={!text.trim()} onClick={doAdd}>
-          <Icon name="plus" />
-        </button>
+        {(users || []).length > 0 && (
+          <div className="field" style={{ margin: "8px 0 0" }}>
+            <label style={{ fontSize: 11 }}>{lang === "es" ? "Asignado a" : "Assigned to"}</label>
+            <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+              <option value="">{lang === "es" ? "— Sin asignar —" : "— Unassigned —"}</option>
+              {(users || []).map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="section-body">
@@ -226,12 +242,19 @@ const TasksTab = ({ personId, tasks, onAddTask, onToggleTask, onDeleteTask, lang
               <div style={{ fontSize: 13.5, fontWeight: 500, color: isOverdue(task) ? "var(--bad)" : "var(--ink-1)" }}>
                 {task.text}
               </div>
-              {task.due && (
-                <div style={{ fontSize: 11.5, marginTop: 2, color: isOverdue(task) ? "var(--bad)" : "var(--ink-3)", fontWeight: isOverdue(task) ? 600 : 400 }}>
-                  <Icon name="calendar" size={11} /> {fmtDate(task.due, lang)}
-                  {isOverdue(task) && <span style={{ marginLeft: 6 }}>{lang === "es" ? "¡Vencida!" : "Overdue!"}</span>}
-                </div>
-              )}
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 3, flexWrap: "wrap" }}>
+                {task.due && (
+                  <span style={{ fontSize: 11.5, color: isOverdue(task) ? "var(--bad)" : "var(--ink-3)", fontWeight: isOverdue(task) ? 600 : 400 }}>
+                    <Icon name="calendar" size={11} /> {fmtDate(task.due, lang)}
+                    {isOverdue(task) && <span style={{ marginLeft: 4 }}>{lang === "es" ? "¡Vencida!" : "Overdue!"}</span>}
+                  </span>
+                )}
+                {task.assignedTo && (
+                  <span style={{ fontSize: 11, padding: "1px 7px", borderRadius: 10, background: "var(--accent-50)", color: "var(--accent)", fontWeight: 500 }}>
+                    {userLabel(task.assignedTo)}
+                  </span>
+                )}
+              </div>
             </div>
             <button
               className="btn btn-sm btn-ghost"
