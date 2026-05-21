@@ -31,17 +31,17 @@ const Home = ({ t, lang, data, go }) => {
 
   const recentPersonas = [...personas].sort((a, b) => (b.lastContact || "").localeCompare(a.lastContact || "")).slice(0, 5);
 
-  const today = new Date();
+  const todayDate = new Date();
   const dayOfYear = (d) => {
     const start = new Date(d.getFullYear(), 0, 0);
     return Math.floor((d - start) / 86400000);
   };
-  const todayDay = dayOfYear(today);
+  const todayDay = dayOfYear(todayDate);
   const bdays = personas
     .filter(p => p.birthday)
     .map(p => {
       const [, m, d] = p.birthday.split("-").map(n => parseInt(n));
-      const dt = new Date(today.getFullYear(), m - 1, d);
+      const dt = new Date(todayDate.getFullYear(), m - 1, d);
       let diff = dayOfYear(dt) - todayDay;
       if (diff < 0) diff += 365;
       return { p, diff, dt };
