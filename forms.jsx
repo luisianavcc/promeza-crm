@@ -38,6 +38,9 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
     tags: Array.isArray(initialData.tags) ? initialData.tags.join(", ") : (initialData.tags || ""),
     language: initialData.language || "es",
     status: initialData.status || "activo",
+    stage: initialData.stage || (initialData.status === "inactivo" ? "inactivo" : "conocido"),
+    source: initialData.source || "",
+    nextAction: initialData.nextAction || "",
     birthday: initialData.birthday || "",
     lastContact: initialData.lastContact || "",
   } : {
@@ -47,7 +50,9 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
     website: "",
     social: { ig: "", fb: "", tiktok: "", x: "" },
     entities: prefillData?.entityId ? [{ id: prefillData.entityId, role: prefillData.entityRole || "miembro", roleOther: "", comment: "" }] : [],
-    tags: "", language: "es", status: "activo", birthday: "", lastContact: "",
+    tags: "", language: "es", status: "activo",
+    stage: "nuevo", source: "", nextAction: "",
+    birthday: "", lastContact: "",
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setSoc = (k, v) => setForm(f => ({ ...f, social: { ...f.social, [k]: v } }));
@@ -126,11 +131,31 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
             <TextField label="X (Twitter)" value={form.social.x} onChange={v => setSoc("x", v)} placeholder="@usuario" />
           </div>
 
+          <h4 style={{ margin: "18px 0 8px", fontSize: 12, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Pipeline CRM</h4>
+          <div className="form-grid">
+            <div className="field full">
+              <label>{lang === "es" ? "Etapa en el pipeline" : "Pipeline stage"}</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {(window.PIPELINE_STAGES || []).map(s => (
+                  <button key={s.id} type="button" onClick={() => set("stage", s.id)} style={{
+                    padding: "5px 12px", borderRadius: 20, border: "1.5px solid",
+                    borderColor: form.stage === s.id ? s.color : "var(--line)",
+                    background: form.stage === s.id ? s.bg : "transparent",
+                    color: form.stage === s.id ? s.color : "var(--ink-3)",
+                    fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                  }}>{s.label}</button>
+                ))}
+              </div>
+            </div>
+            <SelectField label={lang === "es" ? "Fuente del contacto" : "Contact source"} value={form.source} onChange={v => set("source", v)}
+              options={[{ value: "", label: lang === "es" ? "— Sin especificar —" : "— Not specified —" }, ...(window.CONTACT_SOURCES || []).map(s => ({ value: s.id, label: s.label }))]} />
+            <TextField type="date" label={lang === "es" ? "Próxima acción" : "Next action date"} value={form.nextAction} onChange={v => set("nextAction", v)} />
+          </div>
+
           <h4 style={{ margin: "18px 0 8px", fontSize: 12, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t.forms.extra}</h4>
           <div className="form-grid">
             <TextField label={t.common.tags} value={form.tags} onChange={v => set("tags", v)} placeholder="liderazgo, vip" hint={lang === "es" ? "Separadas por coma" : "Comma separated"} />
             <SelectField label={t.common.language} value={form.language} onChange={v => set("language", v)} options={langOpts} />
-            <SelectField label={t.common.status} value={form.status} onChange={v => set("status", v)} options={statusOpts} />
             <TextField type="date" label={t.common.birthday} value={form.birthday} onChange={v => set("birthday", v)} />
             <TextField type="date" label={t.common.lastContact} value={form.lastContact} onChange={v => set("lastContact", v)} />
           </div>

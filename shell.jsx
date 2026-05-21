@@ -4,6 +4,7 @@ const Sidebar = ({ route, go, t, counts }) => {
   const items = [
     { id: "home", label: t.nav.home, icon: "home" },
     { id: "personas", label: t.nav.personas, icon: "users", count: counts.personas },
+    { id: "pipeline", label: "Pipeline", icon: "chart" },
     { id: "entities", label: t.nav.entities, icon: "building", count: counts.entities },
     { id: "tasks", label: t.nav.tasks || "Tareas", icon: "check", count: counts.pendingTasks || null, countStyle: counts.overdueCount > 0 ? { background: "#ef4444" } : null },
     { id: "map", label: t.nav.map, icon: "map" },

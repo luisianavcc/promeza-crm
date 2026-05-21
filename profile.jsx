@@ -170,7 +170,11 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
           <h1 className="name">{fullName(p)}</h1>
           <div className="sub">
             <span className="role-pill">{p.role === "otro" ? (p.roleOther || t.roles.otro) : t.roles[p.role]}</span>
-            <span><span className={"status-dot " + (p.status === "inactivo" ? "off" : "")} />{t.common[p.status === "inactivo" ? "inactivos" : "activos"]}</span>
+            {(() => {
+              const stageId = p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
+              const st = (window.PIPELINE_STAGES || []).find(s => s.id === stageId);
+              return st ? <span style={{ padding: "2px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600, background: st.bg, color: st.color, border: "1px solid " + st.color + "40" }}>{st.label}</span> : null;
+            })()}
             <span><Icon name="pin" /> {p.city}, {p.country}</span>
             {p.tags.map(tg => <span key={tg} className="tag-chip">{tg}</span>)}
           </div>
@@ -188,7 +192,13 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
           </button>
           <button className="btn"
             style={p.status !== "inactivo" ? { color: "var(--bad)", borderColor: "var(--bad)" } : { color: "var(--good)", borderColor: "var(--good)" }}
-            onClick={() => onUpdatePerson && onUpdatePerson(p.id, { status: p.status === "inactivo" ? "activo" : "inactivo" })}>
+            onClick={() => {
+              const goInactive = p.status !== "inactivo";
+              onUpdatePerson && onUpdatePerson(p.id, {
+                status: goInactive ? "inactivo" : "activo",
+                stage: goInactive ? "inactivo" : "conocido",
+              });
+            }}>
             <Icon name={p.status === "inactivo" ? "check" : "x"} />
             {p.status === "inactivo" ? (lang === "es" ? "Reactivar" : "Reactivate") : (lang === "es" ? "Inactivar" : "Deactivate")}
           </button>
@@ -235,6 +245,14 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
                 <dl className="kv">
                   <dt>{t.common.birthday}</dt><dd>{fmtDate(p.birthday, lang)}</dd>
                   <dt>{t.common.lastContact}</dt><dd>{fmtDate(p.lastContact, lang)}</dd>
+                  <dt>{lang === "es" ? "Próxima acción" : "Next action"}</dt>
+                  <dd>{p.nextAction ? (
+                    <span style={{ fontWeight: 600, color: p.nextAction < new Date().toISOString().slice(0,10) ? "var(--bad)" : "var(--accent)" }}>
+                      {fmtDate(p.nextAction, lang)}
+                    </span>
+                  ) : <span className="muted">—</span>}</dd>
+                  <dt>{lang === "es" ? "Fuente" : "Source"}</dt>
+                  <dd>{p.source ? ((window.CONTACT_SOURCES || []).find(s => s.id === p.source)?.label || p.source) : <span className="muted">—</span>}</dd>
                   <dt>{t.common.language}</dt><dd>{p.language === "en" ? "English" : "Español"}</dd>
                   <dt>{t.common.tags}</dt><dd>{p.tags && p.tags.length > 0 ? (
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>

@@ -11,6 +11,24 @@ const Home = ({ t, lang, data, go }) => {
     ...entities.map(e => e.city),
   ]);
 
+  const today = new Date().toISOString().slice(0, 10);
+  const in14 = new Date(); in14.setDate(in14.getDate() + 14);
+  const in14str = in14.toISOString().slice(0, 10);
+
+  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
+
+  // Pipeline funnel
+  const stages = window.PIPELINE_STAGES || [];
+  const stageCounts = Object.fromEntries(stages.map(s => [s.id, 0]));
+  personas.forEach(p => { const s = stageOf(p); if (stageCounts[s] !== undefined) stageCounts[s]++; });
+  const maxStageCount = Math.max(1, ...Object.values(stageCounts));
+
+  // Próximas acciones (next 14 days + overdue)
+  const nextActions = personas
+    .filter(p => p.nextAction && p.nextAction <= in14str && stageOf(p) !== "inactivo")
+    .sort((a, b) => a.nextAction.localeCompare(b.nextAction))
+    .slice(0, 6);
+
   const recentPersonas = [...personas].sort((a, b) => (b.lastContact || "").localeCompare(a.lastContact || "")).slice(0, 5);
 
   const today = new Date();
@@ -108,30 +126,68 @@ const Home = ({ t, lang, data, go }) => {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        {/* Pipeline funnel */}
         <div className="card">
           <div className="card-head">
-            <div className="card-title">{t.home.byType}</div>
+            <div className="card-title">Pipeline</div>
+            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "pipeline" })}>
+              Ver tablero →
+            </button>
           </div>
           <div className="card-pad">
-            <Bars
-              rows={typeRows.map(([k, v]) => ({ label: t.types[k] || k, value: v }))}
-              max={Math.max(1, ...typeRows.map(r => r[1]))}
-            />
+            {stages.map(s => (
+              <div key={s.id} className="bar-row" style={{ cursor: "pointer" }} onClick={() => go({ name: "pipeline" })}>
+                <div className="lbl" style={{ color: s.color, fontWeight: 500 }}>{s.label}</div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${(stageCounts[s.id] / maxStageCount) * 100}%`, background: s.color }} />
+                </div>
+                <div className="num">{stageCounts[s.id]}</div>
+              </div>
+            ))}
           </div>
         </div>
 
+        {/* Próximas acciones */}
         <div className="card">
           <div className="card-head">
-            <div className="card-title">{t.home.byRole}</div>
+            <div className="card-title">{lang === "es" ? "Próximas acciones" : "Upcoming actions"}</div>
+            <div className="card-meta" style={{ color: nextActions.filter(p => p.nextAction < today).length > 0 ? "var(--bad)" : "var(--ink-3)" }}>
+              {nextActions.filter(p => p.nextAction < today).length > 0
+                ? nextActions.filter(p => p.nextAction < today).length + (lang === "es" ? " vencidas" : " overdue")
+                : nextActions.length + (lang === "es" ? " esta quincena" : " this fortnight")}
+            </div>
           </div>
-          <div className="card-pad">
-            <Bars
-              rows={roleRows.map(([k, v]) => ({ label: t.roles[k] || k, value: v }))}
-              max={Math.max(1, ...roleRows.map(r => r[1]))}
-            />
+          <div>
+            {nextActions.length === 0 && (
+              <div className="empty" style={{ padding: "24px 0" }}>
+                {lang === "es" ? "Sin acciones pendientes" : "No pending actions"}
+              </div>
+            )}
+            {nextActions.map(p => {
+              const overdue = p.nextAction < today;
+              const daysStr = p.nextAction === today
+                ? (lang === "es" ? "hoy" : "today")
+                : overdue
+                  ? Math.round((new Date(today) - new Date(p.nextAction)) / 86400000) + "d " + (lang === "es" ? "vencida" : "overdue")
+                  : "+" + Math.round((new Date(p.nextAction) - new Date(today)) / 86400000) + "d";
+              return (
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: "1px solid var(--line)", cursor: "pointer" }}
+                  onClick={() => go({ name: "person", id: p.id })}>
+                  <div className="av-circle" style={{ background: p.color }}>{initials(fullName(p))}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{fullName(p)}</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                      {(() => { const st = stages.find(s => s.id === stageOf(p)); return st ? <span style={{ color: st.color, fontWeight: 500 }}>{st.label}</span> : null; })()}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: overdue ? "var(--bad)" : "var(--accent)" }}>{daysStr}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
+        {/* Upcoming birthdays */}
         <div className="card">
           <div className="card-head">
             <div className="card-title">{t.home.upcomingBdays}</div>

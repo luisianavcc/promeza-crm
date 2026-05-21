@@ -187,6 +187,7 @@ const PERSON_FIELD_LABELS = {
   state: "Estado/Prov.", country: "País", zip: "ZIP", website: "Sitio web",
   birthday: "Cumpleaños", lastContact: "Último contacto", language: "Idioma",
   tags: "Etiquetas", entities: "Entidades",
+  stage: "Etapa", source: "Fuente", nextAction: "Próxima acción",
 };
 
 const ENTITY_FIELD_LABELS = {
@@ -245,6 +246,7 @@ const App = () => {
           interactions: parsed.interactions || {},
           tasks: parsed.tasks || {},
           changelog: parsed.changelog || {},
+          segments: parsed.segments || [],
         };
       }
     } catch {}
@@ -255,6 +257,7 @@ const App = () => {
       interactions: {},
       tasks: {},
       changelog: {},
+      segments: [],
     };
   });
 
@@ -297,7 +300,11 @@ const App = () => {
       lat: 0, lng: 0,
       website: form.website, social: form.social,
       entities: form.entities.map(le => ({ id: le.id, role: le.role, roleOther: le.roleOther })),
-      tags, language: form.language, status: form.status,
+      tags, language: form.language,
+      status: form.stage === "inactivo" ? "inactivo" : "activo",
+      stage: form.stage || "nuevo",
+      source: form.source || "",
+      nextAction: form.nextAction || "",
       birthday: form.birthday, lastContact: form.lastContact,
       color,
     };
@@ -382,7 +389,8 @@ const App = () => {
   const handleEditPerson = (id) => { setEditingId(id); setModal("edit-person"); };
   const handleSaveEditPerson = (form) => {
     const tags = form.tags ? form.tags.split(",").map(s => s.trim()).filter(Boolean) : [];
-    handleUpdatePerson(editingId, { ...form, tags, entities: form.entities.map(le => ({ id: le.id, role: le.role, roleOther: le.roleOther })) });
+    const status = form.stage === "inactivo" ? "inactivo" : "activo";
+    handleUpdatePerson(editingId, { ...form, tags, status, entities: form.entities.map(le => ({ id: le.id, role: le.role, roleOther: le.roleOther })) });
     setModal(null);
     setEditingId(null);
   };
@@ -447,6 +455,13 @@ const App = () => {
 
   const handleBulkUpdatePersonas = (ids, updates) => {
     setData(d => ({ ...d, personas: d.personas.map(p => ids.has(p.id) ? { ...p, ...updates } : p) }));
+  };
+
+  const addSegment = (segment) => {
+    setData(d => ({ ...d, segments: [...(d.segments || []), { ...segment, id: "seg" + Date.now() }] }));
+  };
+  const deleteSegment = (id) => {
+    setData(d => ({ ...d, segments: (d.segments || []).filter(s => s.id !== id) }));
   };
 
   const handleBulkAddTagPersonas = (ids, tag) => {
@@ -583,7 +598,8 @@ const App = () => {
   let view;
   switch (route.name) {
     case "home": view = <Home t={t} lang={lang} data={data} go={go} />; break;
-    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} globalQ={query} onBulkDelete={handleBulkDeletePersonas} onBulkUpdateStatus={handleBulkUpdatePersonas} onBulkAddTag={handleBulkAddTagPersonas} />; break;
+    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} globalQ={query} onBulkDelete={handleBulkDeletePersonas} onBulkUpdateStatus={handleBulkUpdatePersonas} onBulkAddTag={handleBulkAddTagPersonas} segments={data.segments || []} onAddSegment={addSegment} onDeleteSegment={deleteSegment} />; break;
+    case "pipeline": view = <PipelineView t={t} lang={lang} data={data} go={go} onUpdatePerson={handleUpdatePerson} />; break;
     case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} onImportEntities={handleImportEntities} globalQ={query} />; break;
     case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment}
       onUpdatePerson={handleUpdatePerson} onEditPerson={handleEditPerson} onDeletePerson={handleDeletePerson}

@@ -261,10 +261,11 @@ const FField = ({ label, children }) => (
   </div>
 );
 
-const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBulkDelete, onBulkUpdateStatus, onBulkAddTag }) => {
+const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBulkDelete, onBulkUpdateStatus, onBulkAddTag, segments, onAddSegment, onDeleteSegment }) => {
   const [role, setRole] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
+  const [stageFilter, setStageFilter] = React.useState("all");
   const [langFilter, setLangFilter] = React.useState("all");
   const [city, setCity] = React.useState("");
   const [zip, setZip] = React.useState("");
@@ -277,14 +278,19 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
   const [selected, setSelected] = React.useState(new Set());
   const [bulkTag, setBulkTag] = React.useState("");
   const [showBulkTagInput, setShowBulkTagInput] = React.useState(false);
+  const [savingSegment, setSavingSegment] = React.useState(false);
+  const [segmentName, setSegmentName] = React.useState("");
 
   const countries = ["all", ...new Set(data.personas.map(p => p.country).filter(Boolean))];
   const roles = ["all", ...Object.keys(t.roles)];
+
+  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
 
   const rows = data.personas.filter(p => {
     if (role !== "all" && p.role !== role) return false;
     if (country !== "all" && p.country !== country) return false;
     if (status !== "all" && p.status !== status) return false;
+    if (stageFilter !== "all" && stageOf(p) !== stageFilter) return false;
     if (langFilter !== "all" && p.language !== langFilter) return false;
     if (city && !(p.city || "").toLowerCase().includes(city.toLowerCase())) return false;
     if (zip && !(p.zip || "").toLowerCase().includes(zip.toLowerCase())) return false;
@@ -297,11 +303,26 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
     return true;
   });
 
-  const activeFilters = [role !== "all", country !== "all", status !== "all", langFilter !== "all", city, zip, tagFilter, emailFilter, phoneFilter, q].filter(Boolean).length;
+  const activeFilters = [role !== "all", country !== "all", status !== "all", stageFilter !== "all", langFilter !== "all", city, zip, tagFilter, emailFilter, phoneFilter, q].filter(Boolean).length;
 
   const clearFilters = () => {
-    setRole("all"); setCountry("all"); setStatus("all"); setLangFilter("all");
+    setRole("all"); setCountry("all"); setStatus("all"); setStageFilter("all"); setLangFilter("all");
     setCity(""); setZip(""); setTagFilter(""); setEmailFilter(""); setPhoneFilter(""); setQ("");
+  };
+
+  const currentFilters = { role, country, status, stageFilter, langFilter, city, zip, tagFilter, emailFilter, phoneFilter, q };
+  const loadSegment = (seg) => {
+    const f = seg.filters;
+    setRole(f.role || "all"); setCountry(f.country || "all"); setStatus(f.status || "all");
+    setStageFilter(f.stageFilter || "all"); setLangFilter(f.langFilter || "all");
+    setCity(f.city || ""); setZip(f.zip || ""); setTagFilter(f.tagFilter || "");
+    setEmailFilter(f.emailFilter || ""); setPhoneFilter(f.phoneFilter || ""); setQ(f.q || "");
+    setShowFilters(true);
+  };
+  const doSaveSegment = () => {
+    if (!segmentName.trim()) return;
+    onAddSegment && onAddSegment({ name: segmentName.trim(), filters: currentFilters });
+    setSegmentName(""); setSavingSegment(false);
   };
 
   const entityById = Object.fromEntries(data.entities.map(e => [e.id, e]));
@@ -442,23 +463,60 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
               ))}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", minWidth: 52 }}>{t.common.status}:</span>
-              {["all", "activo", "inactivo"].map(s => (
-                <button key={s} className={"chip " + (status === s ? "on" : "")} onClick={() => setStatus(s)}>
-                  {s === "all" ? t.common.all : t.common[s === "activo" ? "activos" : "inactivos"]}
-                </button>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", minWidth: 52 }}>Etapa:</span>
+              <button className={"chip " + (stageFilter === "all" ? "on" : "")} onClick={() => setStageFilter("all")}>{t.common.all}</button>
+              {(window.PIPELINE_STAGES || []).map(s => (
+                <button key={s.id} onClick={() => setStageFilter(s.id)} style={{
+                  padding: "3px 10px", borderRadius: 20, border: "1.5px solid",
+                  borderColor: stageFilter === s.id ? s.color : "var(--line)",
+                  background: stageFilter === s.id ? s.bg : "transparent",
+                  color: stageFilter === s.id ? s.color : "var(--ink-3)",
+                  fontFamily: "inherit", fontSize: 12, fontWeight: 500, cursor: "pointer",
+                }}>{s.label}</button>
               ))}
             </div>
           </div>
 
-          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <button className="btn btn-sm" onClick={clearFilters} disabled={activeFilters === 0} style={{ opacity: activeFilters === 0 ? 0.4 : 1 }}>
-              <Icon name="x" /> {lang === "es" ? "Limpiar filtros" : "Clear filters"}
-            </button>
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <button className="btn btn-sm" onClick={clearFilters} disabled={activeFilters === 0} style={{ opacity: activeFilters === 0 ? 0.4 : 1 }}>
+                <Icon name="x" /> {lang === "es" ? "Limpiar" : "Clear"}
+              </button>
+              {activeFilters > 0 && !savingSegment && (
+                <button className="btn btn-sm" onClick={() => setSavingSegment(true)}>
+                  <Icon name="plus" /> {lang === "es" ? "Guardar vista" : "Save view"}
+                </button>
+              )}
+              {savingSegment && (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input value={segmentName} onChange={e => setSegmentName(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && doSaveSegment()}
+                    placeholder={lang === "es" ? "Nombre del segmento…" : "Segment name…"}
+                    style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--line)", fontFamily: "inherit" }} autoFocus />
+                  <button className="btn btn-sm btn-primary" disabled={!segmentName.trim()} onClick={doSaveSegment}><Icon name="check" /></button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => setSavingSegment(false)}><Icon name="x" /></button>
+                </div>
+              )}
+            </div>
             <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>
-              <strong style={{ color: "var(--ink-1)" }}>{rows.length}</strong> {lang === "es" ? "de" : "of"} {data.personas.length} {t.nav.personas.toLowerCase()} {lang === "es" ? "se exportarán" : "will be exported"}
+              <strong style={{ color: "var(--ink-1)" }}>{rows.length}</strong> {lang === "es" ? "de" : "of"} {data.personas.length}
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Saved segments */}
+      {(segments || []).length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>
+            {lang === "es" ? "Vistas:" : "Views:"}
+          </span>
+          {(segments || []).map(seg => (
+            <div key={seg.id} style={{ display: "flex", alignItems: "center", background: "var(--accent-50)", borderRadius: 20, overflow: "hidden" }}>
+              <button onClick={() => loadSegment(seg)} style={{ padding: "3px 10px", background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--accent)", fontFamily: "inherit" }}>{seg.name}</button>
+              <button onClick={() => onDeleteSegment && onDeleteSegment(seg.id)} style={{ padding: "3px 7px 3px 2px", background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", fontFamily: "inherit" }}>×</button>
+            </div>
+          ))}
         </div>
       )}
 
