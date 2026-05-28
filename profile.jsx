@@ -96,6 +96,8 @@ const ChangelogTab = ({ changelog, lang }) => {
                     <div key={j} style={{ fontSize: 12.5, color: "var(--ink-2)" }}>
                       {ch.type === "created" ? (
                         <span style={{ fontWeight: 600, color: "var(--good)" }}>✓ {lang === "es" ? "Registro creado" : "Record created"}</span>
+                      ) : ch.type === "merge" ? (
+                        <span style={{ fontWeight: 600, color: "#7c3aed" }}>⟵ {lang === "es" ? "Fusionado con" : "Merged with"}: {ch.with}</span>
                       ) : ch.type === "tags" || ch.type === "entities" ? (
                         <span><span style={{ fontWeight: 600 }}>{ch.field}</span><span style={{ color: "var(--accent)", marginLeft: 6 }}>{lang === "es" ? "actualizado" : "updated"}</span></span>
                       ) : (
@@ -120,7 +122,8 @@ const ChangelogTab = ({ changelog, lang }) => {
 
 const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEditPerson, onDeletePerson,
   interactions, onAddInteraction, onDeleteInteraction,
-  tasks, onAddTask, onToggleTask, onDeleteTask, changelog, users, currentUser }) => {
+  tasks, onAddTask, onToggleTask, onDeleteTask, changelog, users, currentUser,
+  attachments, onAddAttachment, onDeleteAttachment }) => {
   const p = data.personas.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
   const [linking, setLinking] = React.useState(false);
@@ -152,6 +155,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
     { id: "interactions", label: (lang === "es" ? "Interacciones" : "Interactions") + " (" + (interactions || []).length + ")" },
     { id: "tasks", label: (lang === "es" ? "Tareas" : "Tasks") + (pendingTasks > 0 ? " (" + pendingTasks + ")" : "") },
     { id: "comments", label: t.common.comments + " (" + (data.comments[p.id] || []).length + ")" },
+    { id: "files", label: (lang === "es" ? "Archivos" : "Files") + ((attachments || []).length > 0 ? " (" + (attachments || []).length + ")" : "") },
     { id: "history", label: lang === "es" ? "Cambios" : "Changes" },
     { id: "map", label: t.common.map },
   ];
@@ -371,6 +375,17 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
         </div>
       )}
 
+      {tab === "files" && (
+        <AttachmentsTab
+          targetId={p.id}
+          attachments={attachments || []}
+          onAdd={onAddAttachment}
+          onDelete={onDeleteAttachment}
+          lang={lang}
+          currentUser={currentUser}
+        />
+      )}
+
       {tab === "history" && <ChangelogTab changelog={changelog} lang={lang} />}
 
       {tab === "map" && (
@@ -387,7 +402,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
 
 // ─── ENTITY PROFILE ───
 
-const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUpdatePerson, onEditEntity, onDeleteEntity, changelog }) => {
+const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUpdatePerson, onEditEntity, onDeleteEntity, changelog, attachments, onAddAttachment, onDeleteAttachment }) => {
   const e = data.entities.find(x => x.id === id);
   const [tab, setTab] = React.useState("details");
   const [linking, setLinking] = React.useState(false);
@@ -428,6 +443,7 @@ const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUp
     { id: "details", label: t.common.details },
     { id: "people", label: t.common.relatedPersonas + " (" + linkedPeople.length + ")" },
     { id: "comments", label: t.common.comments + " (" + (data.comments[e.id] || []).length + ")" },
+    { id: "files", label: (lang === "es" ? "Archivos" : "Files") + ((attachments || []).length > 0 ? " (" + (attachments || []).length + ")" : "") },
     { id: "history", label: lang === "es" ? "Cambios" : "Changes" },
     { id: "map", label: t.common.map },
   ];
@@ -647,6 +663,17 @@ const EntityProfile = ({ id, t, lang, data, go, addComment, onUpdateEntity, onUp
             <Comments items={data.comments[e.id] || []} t={t} lang={lang} onAdd={(text) => addComment(e.id, text)} />
           </div>
         </div>
+      )}
+
+      {tab === "files" && (
+        <AttachmentsTab
+          targetId={e.id}
+          attachments={attachments || []}
+          onAdd={onAddAttachment}
+          onDelete={onDeleteAttachment}
+          lang={lang}
+          currentUser={undefined}
+        />
       )}
 
       {tab === "history" && <ChangelogTab changelog={changelog} lang={lang} />}

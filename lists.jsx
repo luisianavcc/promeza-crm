@@ -111,7 +111,10 @@ const ImportModal = ({ type, lang, onClose, onImport }) => {
       entities: [],
       tags: tagsRaw ? tagsRaw.split(/[,;|]/).map(s => s.trim()).filter(Boolean) : [],
       language: findCol(row, ["idioma", "language"]) || "es",
-      status: findCol(row, ["estado", "status"]) || "activo",
+      status: "activo",
+      stage: findCol(row, ["etapa pipeline", "etapa", "stage", "pipeline"]) || "conocido",
+      source: findCol(row, ["fuente", "source", "origen"]),
+      nextAction: findCol(row, ["próxima acción", "proxima accion", "next action", "proximaaccion"]),
       birthday: findCol(row, ["cumpleaños", "cumpleanios", "birthday"]),
       lastContact: findCol(row, ["último contacto", "ultimo contacto", "last contact"]),
       color,
@@ -191,7 +194,7 @@ const ImportModal = ({ type, lang, onClose, onImport }) => {
           <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-100)", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.6 }}>
             <strong>Columnas reconocidas automáticamente:</strong><br />
             {isPersona
-              ? "Nombre, Apellido, Cargo, Email, Teléfono, Dirección, ZIP, Ciudad, País, Instagram, Facebook, TikTok, X, Etiquetas, Idioma, Estado, Cumpleaños"
+              ? "Nombre, Apellido, Cargo, Email, Teléfono, Dirección, ZIP, Ciudad, País, Instagram, Facebook, TikTok, X, Etiquetas, Idioma, Estado, Cumpleaños, Etapa Pipeline, Fuente, Próxima acción"
               : "Nombre, Tipo, Email, Teléfono, Dirección, ZIP, Ciudad, País, Instagram, Facebook, Sitio web, Tamaño, Año fundación, Etiquetas"
             }
           </div>
@@ -261,7 +264,7 @@ const FField = ({ label, children }) => (
   </div>
 );
 
-const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBulkDelete, onBulkUpdateStatus, onBulkAddTag, segments, onAddSegment, onDeleteSegment }) => {
+const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBulkDelete, onBulkUpdateStatus, onBulkAddTag, onBulkAddTask, segments, onAddSegment, onDeleteSegment, users, currentUser }) => {
   const [role, setRole] = React.useState("all");
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
@@ -278,6 +281,10 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
   const [selected, setSelected] = React.useState(new Set());
   const [bulkTag, setBulkTag] = React.useState("");
   const [showBulkTagInput, setShowBulkTagInput] = React.useState(false);
+  const [showBulkTaskForm, setShowBulkTaskForm] = React.useState(false);
+  const [bulkTaskText, setBulkTaskText] = React.useState("");
+  const [bulkTaskDue, setBulkTaskDue] = React.useState("");
+  const [bulkTaskAssignee, setBulkTaskAssignee] = React.useState("");
   const [savingSegment, setSavingSegment] = React.useState(false);
   const [segmentName, setSegmentName] = React.useState("");
 
@@ -362,9 +369,14 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
       { key: "etiquetas", label: "Etiquetas" },
       { key: "idioma", label: "Idioma" },
       { key: "statusReg", label: "Estado" },
+      { key: "etapa", label: "Etapa Pipeline" },
+      { key: "fuente", label: "Fuente" },
+      { key: "proximaAccion", label: "Próxima acción" },
       { key: "cumpleanos", label: "Cumpleaños" },
       { key: "ultimoContacto", label: "Último contacto" },
     ];
+    const stageLabel = (id) => (window.PIPELINE_STAGES || []).find(s => s.id === id)?.label || id || "";
+    const sourceLabel = (id) => (window.CONTACT_SOURCES || []).find(s => s.id === id)?.label || id || "";
     const csvRows = rows.map(p => ({
       id: p.id,
       nombre: p.first,
@@ -386,6 +398,9 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
       etiquetas: (p.tags || []).join(", "),
       idioma: p.language,
       statusReg: p.status,
+      etapa: stageLabel(p.stage || (p.status === "inactivo" ? "inactivo" : "conocido")),
+      fuente: sourceLabel(p.source),
+      proximaAccion: p.nextAction,
       cumpleanos: p.birthday,
       ultimoContacto: p.lastContact,
     }));
@@ -585,12 +600,64 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
               </button>
             </div>
           )}
+          {!showBulkTaskForm ? (
+            <button className="btn btn-sm" style={{ color: "#a5b4fc", borderColor: "rgba(165,180,252,0.4)", background: "transparent" }}
+              onClick={() => { setShowBulkTaskForm(true); setShowBulkTagInput(false); }}>
+              <Icon name="check" /> {lang === "es" ? "Tarea" : "Task"}
+            </button>
+          ) : (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                autoFocus
+                value={bulkTaskText}
+                onChange={e => setBulkTaskText(e.target.value)}
+                placeholder={lang === "es" ? "Descripción de la tarea…" : "Task description…"}
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 13, width: 200, fontFamily: "inherit" }}
+              />
+              <input
+                type="date"
+                value={bulkTaskDue}
+                onChange={e => setBulkTaskDue(e.target.value)}
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 13, width: 130, fontFamily: "inherit" }}
+              />
+              {(users || []).length > 0 && (
+                <select
+                  value={bulkTaskAssignee}
+                  onChange={e => setBulkTaskAssignee(e.target.value)}
+                  style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", borderRadius: 6, padding: "4px 8px", fontSize: 13, fontFamily: "inherit" }}>
+                  <option value="" style={{ color: "#000" }}>{lang === "es" ? "Sin asignar" : "Unassigned"}</option>
+                  {(users || []).map(u => <option key={u.email} value={u.email} style={{ color: "#000" }}>{u.name}</option>)}
+                </select>
+              )}
+              <button className="btn btn-sm" style={{ color: "#fff", borderColor: "rgba(255,255,255,0.3)", background: "transparent" }}
+                disabled={!bulkTaskText.trim()}
+                onClick={() => {
+                  if (!bulkTaskText.trim()) return;
+                  const today = new Date().toISOString().slice(0, 10);
+                  selected.forEach(pid => {
+                    onBulkAddTask && onBulkAddTask(pid, {
+                      id: "t" + Date.now() + Math.random().toString(36).slice(2, 6),
+                      text: bulkTaskText.trim(), due: bulkTaskDue, done: false,
+                      createdAt: today, assignedTo: bulkTaskAssignee || null,
+                    });
+                  });
+                  setBulkTaskText(""); setBulkTaskDue(""); setBulkTaskAssignee("");
+                  setShowBulkTaskForm(false); setSelected(new Set());
+                }}>
+                <Icon name="check" /> {lang === "es" ? `Asignar a ${selected.size}` : `Assign to ${selected.size}`}
+              </button>
+              <button className="btn btn-sm" style={{ color: "rgba(255,255,255,0.5)", borderColor: "transparent", background: "transparent" }}
+                onClick={() => { setShowBulkTaskForm(false); setBulkTaskText(""); }}>
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+          )}
           <button className="btn btn-sm" style={{ color: "#fca5a5", borderColor: "rgba(252,165,165,0.4)", background: "transparent" }}
             onClick={() => { onBulkDelete && onBulkDelete(selected); setSelected(new Set()); }}>
             <Icon name="trash" /> {lang === "es" ? "Eliminar" : "Delete"}
           </button>
           <button className="btn btn-sm" style={{ color: "rgba(255,255,255,0.45)", borderColor: "transparent", background: "transparent" }}
-            onClick={() => setSelected(new Set())}>
+            onClick={() => { setSelected(new Set()); setShowBulkTaskForm(false); setShowBulkTagInput(false); }}>
             <Icon name="x" />
           </button>
         </div>

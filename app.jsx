@@ -247,6 +247,7 @@ const App = () => {
           tasks: parsed.tasks || {},
           changelog: parsed.changelog || {},
           segments: parsed.segments || [],
+          attachments: parsed.attachments || {},
         };
       }
     } catch {}
@@ -258,6 +259,7 @@ const App = () => {
       tasks: {},
       changelog: {},
       segments: [],
+      attachments: {},
     };
   });
 
@@ -448,6 +450,24 @@ const App = () => {
     }));
   };
 
+  const handleBulkAddTask = (personId, task) => {
+    addTask(personId, task);
+  };
+
+  const addAttachment = (targetId, attachment) => {
+    setData(d => ({
+      ...d,
+      attachments: { ...d.attachments, [targetId]: [...(d.attachments[targetId] || []), attachment] },
+    }));
+  };
+
+  const deleteAttachment = (targetId, attId) => {
+    setData(d => ({
+      ...d,
+      attachments: { ...d.attachments, [targetId]: (d.attachments[targetId] || []).filter(a => a.id !== attId) },
+    }));
+  };
+
   const handleBulkDeletePersonas = (ids) => {
     if (!confirm(lang === "es" ? `¿Eliminar ${ids.size} personas seleccionadas? Esta acción no se puede deshacer.` : `Delete ${ids.size} selected people? This cannot be undone.`)) return;
     setData(d => ({ ...d, personas: d.personas.filter(p => !ids.has(p.id)) }));
@@ -473,16 +493,21 @@ const App = () => {
 
   const handleMergeWithData = (keepId, dropId, mergedData) => {
     setData(d => {
+      const drop = d.personas.find(p => p.id === dropId);
+      const dropName = drop ? (drop.first + " " + drop.last) : dropId;
       const mergedComments = [
         ...(d.comments[keepId] || []),
         ...(d.comments[dropId] || []),
       ].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
       const newComments = { ...d.comments, [keepId]: mergedComments };
       delete newComments[dropId];
+      const mergeEntry = { id: "cl" + Date.now(), date: new Date().toISOString(), author: userEmail || "Usuario", changes: [{ field: "record", type: "merge", with: dropName }] };
+      const cl = { ...d.changelog, [keepId]: [mergeEntry, ...(d.changelog[keepId] || [])] };
       return {
         ...d,
         personas: d.personas.map(p => p.id === keepId ? mergedData : p).filter(p => p.id !== dropId),
         comments: newComments,
+        changelog: cl,
       };
     });
     setDupPairs(ps => ps
@@ -497,6 +522,7 @@ const App = () => {
       const keep = d.personas.find(p => p.id === idA);
       const drop = d.personas.find(p => p.id === idB);
       if (!keep || !drop) return d;
+      const dropName = drop.first + " " + drop.last;
       const merged = {
         ...keep,
         email: keep.email || drop.email || "",
@@ -527,10 +553,13 @@ const App = () => {
       ].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
       const newComments = { ...d.comments, [idA]: mergedComments };
       delete newComments[idB];
+      const mergeEntry = { id: "cl" + Date.now(), date: new Date().toISOString(), author: userEmail || "Usuario", changes: [{ field: "record", type: "merge", with: dropName }] };
+      const cl = { ...d.changelog, [idA]: [mergeEntry, ...(d.changelog[idA] || [])] };
       return {
         ...d,
         personas: d.personas.map(p => p.id === idA ? merged : p).filter(p => p.id !== idB),
         comments: newComments,
+        changelog: cl,
       };
     });
     setDupPairs(ps => ps
@@ -598,7 +627,7 @@ const App = () => {
   let view;
   switch (route.name) {
     case "home": view = <Home t={t} lang={lang} data={data} go={go} />; break;
-    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} globalQ={query} onBulkDelete={handleBulkDeletePersonas} onBulkUpdateStatus={handleBulkUpdatePersonas} onBulkAddTag={handleBulkAddTagPersonas} segments={data.segments || []} onAddSegment={addSegment} onDeleteSegment={deleteSegment} />; break;
+    case "personas": view = <PersonasList t={t} lang={lang} data={data} go={go} onImportPersonas={handleImportPersonas} globalQ={query} onBulkDelete={handleBulkDeletePersonas} onBulkUpdateStatus={handleBulkUpdatePersonas} onBulkAddTag={handleBulkAddTagPersonas} onBulkAddTask={handleBulkAddTask} segments={data.segments || []} onAddSegment={addSegment} onDeleteSegment={deleteSegment} users={window.PROMEZA_USERS || []} currentUser={userEmail} />; break;
     case "pipeline": view = <PipelineView t={t} lang={lang} data={data} go={go} onUpdatePerson={handleUpdatePerson} />; break;
     case "entities": view = <EntitiesList t={t} lang={lang} data={data} go={go} onImportEntities={handleImportEntities} globalQ={query} />; break;
     case "person": view = <PersonProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment}
@@ -612,12 +641,15 @@ const App = () => {
       onDeleteTask={(id) => deleteTask(route.id, id)}
       changelog={data.changelog[route.id] || []}
       users={window.PROMEZA_USERS || []} currentUser={userEmail}
+      attachments={data.attachments[route.id] || []}
+      onAddAttachment={(att) => addAttachment(route.id, att)}
+      onDeleteAttachment={(attId) => deleteAttachment(route.id, attId)}
     />; break;
     case "tasks": view = <GlobalTasksView t={t} lang={lang} data={data} go={go}
       tasks={data.tasks} users={window.PROMEZA_USERS || []} currentUser={userEmail}
       onAddTask={addTask} onToggleTask={toggleTask} onDeleteTask={deleteTask}
     />; break;
-    case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} changelog={data.changelog[route.id] || []} />; break;
+    case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} changelog={data.changelog[route.id] || []} attachments={data.attachments[route.id] || []} onAddAttachment={(att) => addAttachment(route.id, att)} onDeleteAttachment={(attId) => deleteAttachment(route.id, attId)} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
     case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onMergeWithData={handleMergeWithData} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;

@@ -125,7 +125,7 @@ window.PROMEZA_DATA = (function () {
     },
   ];
 
-  const palette = ["#2F6BFF", "#0E7C66", "#B45309", "#7C3AED", "#BE185D", "#0369A1", "#15803D", "#9F1239", "#4338CA", "#92400E"];
+  const palette = ["#4f46e5", "#0E7C66", "#B45309", "#7C3AED", "#BE185D", "#0369A1", "#059669", "#9F1239", "#6366f1", "#92400E"];
 
   const personas = [
     { id: "p1", first: "Marcos", last: "Rivera", role: "pastor", email: "marcos@centrodefe.org", phone: "+1 305 555 1101", address: "120 NW 27th Ave", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7600, lng: -80.2400, website: "marcosrivera.org", social: { ig: "@pastormarcos", fb: "pastormarcos", tiktok: "", x: "@pmarcos" }, entities: [{ id: "e1", role: "pastor" }], tags: ["liderazgo", "vip"], language: "es", status: "activo", birthday: "1972-04-12", lastContact: "2026-04-28" },
