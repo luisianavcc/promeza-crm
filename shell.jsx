@@ -244,10 +244,63 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
 
 const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, userEmail, data, go }) => {
   const [showNotif, setShowNotif] = React.useState(false);
+  const [showSearch, setShowSearch] = React.useState(false);
   const notifRef = React.useRef(null);
-  const initials = userEmail ? userEmail.slice(0, 2).toUpperCase() : "??";
+  const searchRef = React.useRef(null);
+  const inputRef = React.useRef(null);
+  const userInitials = userEmail ? userEmail.slice(0, 2).toUpperCase() : "??";
   const displayName = userEmail ? userEmail.split("@")[0].replace(".", " ") : "";
   const firstName = displayName.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+
+  // Live search results
+  const searchResults = React.useMemo(() => {
+    const q = (query || "").trim().toLowerCase();
+    if (!q || q.length < 2 || !data) return null;
+    const norm = s => (s || "").toLowerCase();
+    const matchP = (p) =>
+      norm(p.first + " " + p.last).includes(q) ||
+      norm(p.email).includes(q) ||
+      norm((p.phone || "").replace(/\D/g, "")).includes(q.replace(/\D/g, "")) ||
+      norm(p.city).includes(q) ||
+      norm(p.role).includes(q) ||
+      (p.tags || []).some(tg => norm(tg).includes(q));
+    const matchE = (e) =>
+      norm(e.name).includes(q) ||
+      norm(e.email).includes(q) ||
+      norm(e.city).includes(q) ||
+      norm(e.phone).includes(q);
+    const matchPr = (pr) =>
+      norm(pr.name).includes(q) ||
+      norm(pr.description).includes(q) ||
+      norm(pr.location).includes(q);
+    const personas = data.personas.filter(matchP).slice(0, 5);
+    const entities = data.entities.filter(matchE).slice(0, 4);
+    const projects = (data.projects || []).filter(matchPr).slice(0, 3);
+    return { personas, entities, projects, total: personas.length + entities.length + projects.length };
+  }, [query, data]);
+
+  const closeSearch = () => { setShowSearch(false); };
+  const pick = (route) => { go(route); setQuery(""); closeSearch(); };
+
+  // Close search on outside click
+  React.useEffect(() => {
+    if (!showSearch) return;
+    const handler = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) closeSearch();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showSearch]);
+
+  // Close notifications on outside click
+  React.useEffect(() => {
+    if (!showNotif) return;
+    const handler = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showNotif]);
 
   // Count notifications
   const today = new Date().toISOString().slice(0, 10);
@@ -260,9 +313,7 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
   const notifCount = React.useMemo(() => {
     if (!data) return 0;
     let n = 0;
-    // upcoming projects this week
     n += (data.projects || []).filter(pr => pr.dateStart && pr.dateStart >= today && pr.dateStart <= in7str && pr.status !== "cancelado").length;
-    // birthdays this week
     n += data.personas.filter(p => {
       if (!p.birthday) return false;
       const [, m, d] = p.birthday.split("-").map(Number);
@@ -270,33 +321,153 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
       const diff = dayOfYear(dt) - todayDOY;
       return diff >= 0 && diff <= 7;
     }).length;
-    // overdue tasks
     n += Object.values(data.tasks || {}).flat().filter(tk => !tk.done && tk.due && tk.due < today).length;
-    // bad contact info (count as 1 group so it doesn't inflate the badge)
     if (window.hasContactIssue && data.personas.some(p => window.hasContactIssue(p))) n += 1;
     return Math.min(99, n);
   }, [data, today]);
 
-  React.useEffect(() => {
-    if (!showNotif) return;
-    const handler = (e) => {
-      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotif(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showNotif]);
+  const stages = window.PIPELINE_STAGES || [];
+  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
 
   return (
     <header className="topbar">
-      <div className="search">
+      {/* Search with live dropdown */}
+      <div className="search" ref={searchRef} style={{ position: "relative", flex: 1, maxWidth: 520 }}>
         <span className="search-icon"><Icon name="search" /></span>
         <input
+          ref={inputRef}
           placeholder={t.placeholders.search}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") onSearchSubmit(); }}
+          onChange={(e) => { setQuery(e.target.value); setShowSearch(true); }}
+          onFocus={() => { if (query.trim().length >= 2) setShowSearch(true); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { onSearchSubmit(); closeSearch(); }
+            if (e.key === "Escape") { setQuery(""); closeSearch(); }
+          }}
         />
+        {query && (
+          <button onClick={() => { setQuery(""); closeSearch(); }}
+            style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 2, display: "grid", placeItems: "center" }}>
+            <Icon name="x" size={13} />
+          </button>
+        )}
+
+        {/* Live search dropdown */}
+        {showSearch && searchResults && query.trim().length >= 2 && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+            background: "var(--bg)", border: "1px solid var(--line)",
+            borderRadius: 12, boxShadow: "var(--shadow-lg)", zIndex: 600,
+            maxHeight: 480, overflowY: "auto", animation: "popIn .15s ease-out",
+          }}>
+            {searchResults.total === 0 ? (
+              <div style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)", fontSize: 13 }}>
+                <div style={{ fontSize: 22, marginBottom: 6 }}>🔍</div>
+                Sin resultados para "<strong>{query}</strong>"
+              </div>
+            ) : (
+              <>
+                {searchResults.personas.length > 0 && (
+                  <div>
+                    <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                      Personas · {searchResults.personas.length}
+                    </div>
+                    {searchResults.personas.map(p => {
+                      const stage = stages.find(s => s.id === stageOf(p));
+                      return (
+                        <div key={p.id}
+                          style={{ padding: "9px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", borderBottom: "1px solid var(--line)", transition: "background .1s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "var(--bg-soft)"}
+                          onMouseLeave={e => e.currentTarget.style.background = ""}
+                          onClick={() => pick({ name: "person", id: p.id })}>
+                          <div className="av-circle" style={{ background: p.color, width: 34, height: 34, fontSize: 12, flexShrink: 0 }}>{initials(fullName(p))}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{fullName(p)}</div>
+                            <div style={{ fontSize: 11.5, color: "var(--ink-3)", display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              {p.role && <span>{fmtRole(p.role, t)}</span>}
+                              {p.city && <span>· {p.city}</span>}
+                              {p.email && <span style={{ color: "var(--ink-4)" }}>· {p.email}</span>}
+                              {p.phone && <span style={{ color: "var(--ink-4)" }}>· {p.phone}</span>}
+                            </div>
+                          </div>
+                          {stage && <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: stage.color + "14", color: stage.color, whiteSpace: "nowrap", flexShrink: 0 }}>{stage.label}</span>}
+                        </div>
+                      );
+                    })}
+                    {data.personas.filter(p => {
+                      const q = query.trim().toLowerCase();
+                      const norm = s => (s || "").toLowerCase();
+                      return norm(p.first + " " + p.last).includes(q) || norm(p.email).includes(q) || norm(p.city).includes(q);
+                    }).length > 5 && (
+                      <div style={{ padding: "7px 16px", fontSize: 12, color: "var(--accent)", fontWeight: 600, cursor: "pointer", textAlign: "center" }}
+                        onClick={() => { onSearchSubmit(); closeSearch(); }}>
+                        Ver todos los resultados →
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {searchResults.entities.length > 0 && (
+                  <div>
+                    <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                      Entidades · {searchResults.entities.length}
+                    </div>
+                    {searchResults.entities.map(e => (
+                      <div key={e.id}
+                        style={{ padding: "9px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", borderBottom: "1px solid var(--line)", transition: "background .1s" }}
+                        onMouseEnter={ev => ev.currentTarget.style.background = "var(--bg-soft)"}
+                        onMouseLeave={ev => ev.currentTarget.style.background = ""}
+                        onClick={() => pick({ name: "entity", id: e.id })}>
+                        <div style={{ width: 34, height: 34, borderRadius: 9, background: "var(--accent-50)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                          <Icon name="building" size={16} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{e.name}</div>
+                          <div style={{ fontSize: 11.5, color: "var(--ink-3)", display: "flex", gap: 6 }}>
+                            {e.city && <span>{e.city}</span>}
+                            {e.phone && <span>· {e.phone}</span>}
+                            {e.email && <span style={{ color: "var(--ink-4)" }}>· {e.email}</span>}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 10.5, color: "var(--ink-4)", flexShrink: 0 }}>{(t.types || {})[e.type] || e.type}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {searchResults.projects.length > 0 && (
+                  <div>
+                    <div style={{ padding: "8px 16px 4px", fontSize: 10, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                      Proyectos · {searchResults.projects.length}
+                    </div>
+                    {searchResults.projects.map(pr => {
+                      const types = window.PROJECT_TYPES || [];
+                      const pt = types.find(t => t.id === pr.type) || { emoji: "📂", color: "#6366f1" };
+                      return (
+                        <div key={pr.id}
+                          style={{ padding: "9px 16px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", borderBottom: "1px solid var(--line)", transition: "background .1s" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "var(--bg-soft)"}
+                          onMouseLeave={e => e.currentTarget.style.background = ""}
+                          onClick={() => pick({ name: "project", id: pr.id })}>
+                          <div style={{ width: 34, height: 34, borderRadius: 9, background: pt.color + "18", display: "grid", placeItems: "center", fontSize: 17, flexShrink: 0 }}>{pt.emoji}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13 }}>{pr.name}</div>
+                            <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+                              {pr.dateStart ? fmtDate(pr.dateStart, lang) : ""}
+                              {pr.location ? " · " + pr.location : ""}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
+
       <div className="top-spacer" />
       <div className="lang-toggle">
         <button className={lang === "es" ? "on" : ""} onClick={() => setLang("es")}>ES</button>
@@ -305,8 +476,7 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
 
       {/* Notification bell */}
       <div style={{ position: "relative" }} ref={notifRef}>
-        <button className="icon-btn" title="Notificaciones" onClick={() => setShowNotif(v => !v)}
-          style={{ position: "relative" }}>
+        <button className="icon-btn" title="Notificaciones" onClick={() => setShowNotif(v => !v)} style={{ position: "relative" }}>
           <Icon name="bell" />
           {notifCount > 0 && (
             <span style={{
@@ -328,7 +498,7 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
         <Icon name="settings" />
       </button>
       <div className="user-pill" style={{ cursor: "pointer" }} onClick={onSettings} title={userEmail}>
-        <div className="av" style={{ background: "var(--accent)" }}>{initials}</div>
+        <div className="av" style={{ background: "var(--accent)" }}>{userInitials}</div>
         <span style={{ fontSize: 12, fontWeight: 500, maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {firstName || userEmail}
         </span>
