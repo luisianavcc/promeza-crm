@@ -755,9 +755,12 @@ const App = () => {
     default: view = <Home t={t} lang={lang} data={data} go={go} />;
   }
 
+  const [sideOpen, setSideOpen] = useState(false);
+
   return (
     <div className="app">
-      <Sidebar route={route} go={go} t={t} counts={counts} />
+      {sideOpen && <div className="sidebar-overlay visible" onClick={() => setSideOpen(false)} />}
+      <Sidebar route={route} go={go} t={t} counts={counts} mobileOpen={sideOpen} onClose={() => setSideOpen(false)} />
       <Topbar
         t={t} lang={lang} setLang={setLang}
         query={query} setQuery={setQuery}
@@ -766,6 +769,7 @@ const App = () => {
         userEmail={userEmail}
         data={data}
         go={go}
+        onMenuToggle={() => setSideOpen(v => !v)}
       />
       <main className="main">{view}</main>
 

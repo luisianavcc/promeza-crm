@@ -388,9 +388,14 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
                     textDecoration: task.done ? "line-through" : "none",
                     color: overdue ? "var(--bad)" : "var(--ink-1)",
                   }}>
+                    {task.text.startsWith("Revisar posible duplicado") && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, marginRight: 6, background: "#ede9fe", color: "#7c3aed", borderRadius: 5, padding: "1px 7px", fontSize: 11, fontWeight: 700, verticalAlign: "middle" }}>
+                        <Icon name="users" size={11} /> DUP
+                      </span>
+                    )}
                     {task.text}
                   </div>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 5, flexWrap: "wrap" }}>
                     {/* Persona link */}
                     <button
                       className="btn btn-ghost btn-sm"
@@ -415,6 +420,15 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
                       <span style={{ fontSize: 11, color: "var(--ink-4)" }}>
                         {lang === "es" ? "Sin asignar" : "Unassigned"}
                       </span>
+                    )}
+                    {/* Duplicate shortcut button */}
+                    {task.text.startsWith("Revisar posible duplicado") && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: "1px 8px", fontSize: 11, color: "#7c3aed", borderColor: "#ede9fe", background: "#ede9fe", height: "auto" }}
+                        onClick={() => go({ name: "duplicates" })}>
+                        <Icon name="users" size={11} /> {lang === "es" ? "Revisar duplicados →" : "Review duplicates →"}
+                      </button>
                     )}
                   </div>
                 </div>

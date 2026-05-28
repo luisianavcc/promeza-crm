@@ -1,6 +1,6 @@
 // PROMEZA CRM — Sidebar / Topbar shell
 
-const Sidebar = ({ route, go, t, counts }) => {
+const Sidebar = ({ route, go, t, counts, mobileOpen, onClose }) => {
   const items = [
     { id: "home",      label: t.nav.home,                  icon: "home" },
     { id: "personas",  label: t.nav.personas,              icon: "users",    count: counts.personas },
@@ -16,8 +16,10 @@ const Sidebar = ({ route, go, t, counts }) => {
     { id: "map",       label: t.nav.map,                   icon: "map" },
   ];
 
+  const handleNav = (id) => { go({ name: id }); if (onClose) onClose(); };
+
   return (
-    <aside className="sidebar">
+    <aside className={"sidebar" + (mobileOpen ? " mobile-open" : "")}>
       <div className="brand">
         <div className="brand-mark">P</div>
         <div>
@@ -31,7 +33,7 @@ const Sidebar = ({ route, go, t, counts }) => {
           <div
             key={it.id}
             className={"nav-item " + (route.name === it.id ? "active" : "")}
-            onClick={() => go({ name: it.id })}
+            onClick={() => handleNav(it.id)}
           >
             <span className="dot"><Icon name={it.icon} /></span>
             <span>{it.label}</span>
@@ -41,11 +43,11 @@ const Sidebar = ({ route, go, t, counts }) => {
       </div>
       <div className="nav-group">
         <div className="nav-label">{t.common.add}</div>
-        <div className="nav-item" onClick={() => go({ name: "new-person" })}>
+        <div className="nav-item" onClick={() => { go({ name: "new-person" }); if (onClose) onClose(); }}>
           <span className="dot"><Icon name="plus" /></span>
           <span>{t.nav.newPerson}</span>
         </div>
-        <div className="nav-item" onClick={() => go({ name: "new-entity" })}>
+        <div className="nav-item" onClick={() => { go({ name: "new-entity" }); if (onClose) onClose(); }}>
           <span className="dot"><Icon name="plus" /></span>
           <span>{t.nav.newEntity}</span>
         </div>
@@ -54,7 +56,7 @@ const Sidebar = ({ route, go, t, counts }) => {
         <div className="nav-label">Calidad</div>
         <div
           className={"nav-item " + (route.name === "duplicates" ? "active" : "")}
-          onClick={() => go({ name: "duplicates" })}
+          onClick={() => handleNav("duplicates")}
         >
           <span className="dot"><Icon name="copy" /></span>
           <span>Duplicados</span>
@@ -243,7 +245,7 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
   );
 };
 
-const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, userEmail, data, go }) => {
+const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, userEmail, data, go, onMenuToggle }) => {
   const [showNotif, setShowNotif] = React.useState(false);
   const [showSearch, setShowSearch] = React.useState(false);
   const notifRef = React.useRef(null);
@@ -332,6 +334,12 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
 
   return (
     <header className="topbar">
+      {/* Hamburger — mobile only */}
+      <button className="menu-toggle" onClick={onMenuToggle} aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+        </svg>
+      </button>
       {/* Search with live dropdown */}
       <div className="search" ref={searchRef} style={{ position: "relative", flex: 1, maxWidth: 520 }}>
         <span className="search-icon"><Icon name="search" /></span>
@@ -470,7 +478,7 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
       </div>
 
       <div className="top-spacer" />
-      <div className="lang-toggle">
+      <div className="lang-toggle topbar-lang">
         <button className={lang === "es" ? "on" : ""} onClick={() => setLang("es")}>ES</button>
         <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
       </div>
