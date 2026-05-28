@@ -749,6 +749,7 @@ const App = () => {
     case "campaigns": view = <CampaignsView lang={lang} data={data} go={go} onSaveCampaign={saveCampaign} />; break;
     case "calendar": view = <CalendarView lang={lang} data={data} go={go} />; break;
     case "goals": view = <GoalsView lang={lang} data={data} go={go} onAddGoal={addGoal} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />; break;
+    case "county": view = <CountyView t={t} lang={lang} data={data} go={go} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
     case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onMergeWithData={handleMergeWithData} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;
