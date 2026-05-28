@@ -236,6 +236,7 @@ const App = () => {
   const [modalPrefill, setModalPrefill] = useState(null);
   const [dupPairs, setDupPairs] = useState([]);
   const [entityDupPairs, setEntityDupPairs] = useState([]);
+  const [sideOpen, setSideOpen] = useState(false);
 
   const [data, setData] = useState(() => {
     try {
@@ -754,8 +755,6 @@ const App = () => {
     case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onMergeWithData={handleMergeWithData} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;
   }
-
-  const [sideOpen, setSideOpen] = useState(false);
 
   return (
     <div className="app">
