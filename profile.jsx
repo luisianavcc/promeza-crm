@@ -255,7 +255,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
               const st = (window.PIPELINE_STAGES || []).find(s => s.id === stageId);
               return st ? <span style={{ padding: "3px 10px", borderRadius: 12, fontSize: 11.5, fontWeight: 700, letterSpacing: ".01em", background: st.bg, color: st.color, border: "1px solid " + st.color + "40" }}>{st.label}</span> : null;
             })()}
-            {p.city && <span><Icon name="pin" /> {p.city}{p.country ? ", " + p.country : ""}</span>}
+            {p.city && <span><Icon name="pin" /> {p.city}{p.county ? " · " + p.county : ""}{p.country ? ", " + p.country : ""}</span>}
             {daysSinceContact !== null && (
               <span style={{ fontSize: 12, color: daysSinceContact > 180 ? "var(--bad)" : daysSinceContact > 90 ? "var(--warn)" : "var(--ink-3)" }}>
                 <Icon name="calendar" size={12} /> {daysSinceContact === 0 ? (lang === "es" ? "contactado hoy" : "contacted today") : lang === "es" ? `${daysSinceContact}d sin contacto` : `${daysSinceContact}d no contact`}
@@ -377,6 +377,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
                   <dt>ZIP</dt><dd className="mono">{p.zip || <span className="muted">—</span>}</dd>
                   <dt>{lang === "es" ? "Ciudad" : "City"}</dt><dd>{p.city}</dd>
                   <dt>{lang === "es" ? "Estado" : "State"}</dt><dd>{p.state}</dd>
+                  {p.county && <><dt>{lang === "es" ? "Condado" : "County"}</dt><dd style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ background: "#ede9fe", color: "#7c3aed", borderRadius: 6, padding: "1px 8px", fontSize: 12, fontWeight: 600 }}>{p.county}</span></dd></>}
                   <dt>{lang === "es" ? "País" : "Country"}</dt><dd>{p.country}</dd>
                 </dl>
               </div>

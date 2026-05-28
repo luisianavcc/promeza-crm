@@ -1,9 +1,9 @@
 // PROMEZA CRM — Forms: New Person / New Entity (modal style)
 
-const TextField = ({ label, value, onChange, type = "text", placeholder, full, optional, hint }) => (
+const TextField = ({ label, value, onChange, type = "text", placeholder, full, optional, hint, onBlur }) => (
   <div className={"field" + (full ? " full" : "")}>
     <label>{label}{optional && <span style={{ marginLeft: 6, color: "var(--ink-4)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(opcional)</span>}</label>
-    <input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    <input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} onBlur={onBlur} />
     {hint && <div className="muted" style={{ fontSize: 11 }}>{hint}</div>}
   </div>
 );
@@ -32,6 +32,7 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
     city: initialData.city || "",
     state: initialData.state || "",
     country: initialData.country || "",
+    county: initialData.county || "",
     website: initialData.website || "",
     social: initialData.social || { ig: "", fb: "", tiktok: "", x: "" },
     entities: initialData.entities || [],
@@ -47,7 +48,7 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
   } : {
     first: "", last: "", role: "miembro", roleOther: "",
     email: "", phone: "",
-    address: "", zip: "", city: "", state: "", country: "",
+    address: "", zip: "", city: "", state: "", country: "", county: "",
     website: "",
     social: { ig: "", fb: "", tiktok: "", x: "" },
     entities: prefillData?.entityId ? [{ id: prefillData.entityId, role: prefillData.entityRole || "miembro", roleOther: "", comment: "" }] : [],
@@ -58,6 +59,23 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setSoc = (k, v) => setForm(f => ({ ...f, social: { ...f.social, [k]: v } }));
+
+  const [countyLoading, setCountyLoading] = React.useState(false);
+  const lookupCounty = async (city, state) => {
+    if (!city) return;
+    const q = [city, state].filter(Boolean).join(", ");
+    setCountyLoading(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=1`, { headers: { "Accept-Language": "es" } });
+      const results = await res.json();
+      if (results.length && results[0].address) {
+        const addr = results[0].address;
+        const county = addr.county || addr.state_district || addr.region || "";
+        if (county) set("county", county);
+      }
+    } catch(e) {}
+    setCountyLoading(false);
+  };
 
   const addAddress = () => set("extraAddresses", [...(form.extraAddresses || []), { id: "addr" + Date.now(), label: "", address: "", city: "", state: "", country: "", zip: "" }]);
   const removeAddress = (idx) => set("extraAddresses", form.extraAddresses.filter((_, i) => i !== idx));
@@ -113,9 +131,17 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
           <div className="form-grid">
             <TextField full label={lang === "es" ? "Dirección completa" : "Full address"} value={form.address} onChange={v => set("address", v)} placeholder="Calle, número, depto." />
             <TextField label="ZIP" value={form.zip} onChange={v => set("zip", v)} />
-            <TextField label={lang === "es" ? "Ciudad" : "City"} value={form.city} onChange={v => set("city", v)} />
-            <TextField label={lang === "es" ? "Estado / Provincia" : "State / Province"} value={form.state} onChange={v => set("state", v)} />
+            <TextField label={lang === "es" ? "Ciudad" : "City"} value={form.city} onChange={v => set("city", v)} onBlur={() => lookupCounty(form.city, form.state)} />
+            <TextField label={lang === "es" ? "Estado / Provincia" : "State / Province"} value={form.state} onChange={v => set("state", v)} onBlur={() => lookupCounty(form.city, form.state)} />
             <TextField label={lang === "es" ? "País" : "Country"} value={form.country} onChange={v => set("country", v)} />
+            <div className="field">
+              <label>
+                {lang === "es" ? "Condado / Región" : "County / Region"}
+                {countyLoading && <span style={{ marginLeft: 6, color: "var(--accent)", fontSize: 10, fontWeight: 400 }}>detectando…</span>}
+                {form.county && !countyLoading && <span style={{ marginLeft: 6, color: "var(--good)", fontSize: 10, fontWeight: 600 }}>● auto</span>}
+              </label>
+              <input value={form.county || ""} onChange={e => set("county", e.target.value)} placeholder={lang === "es" ? "Se detecta al ingresar ciudad" : "Auto-detected from city"} />
+            </div>
           </div>
 
           {/* Extra addresses */}
@@ -237,6 +263,7 @@ const NewEntityForm = ({ t, lang, data, onClose, onSave, initialData, editMode }
     city: initialData.city || "",
     state: initialData.state || "",
     country: initialData.country || "",
+    county: initialData.county || "",
     website: initialData.website || "",
     social: initialData.social || { ig: "", fb: "", tiktok: "", x: "" },
     size: initialData.size ? String(initialData.size) : "",
@@ -246,7 +273,7 @@ const NewEntityForm = ({ t, lang, data, onClose, onSave, initialData, editMode }
   } : {
     name: "", type: "iglesia", typeOther: "",
     email: "", phone: "",
-    address: "", zip: "", city: "", state: "", country: "",
+    address: "", zip: "", city: "", state: "", country: "", county: "",
     website: "",
     social: { ig: "", fb: "", tiktok: "", x: "" },
     size: "", founded: "", parent: "",
@@ -254,6 +281,23 @@ const NewEntityForm = ({ t, lang, data, onClose, onSave, initialData, editMode }
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setSoc = (k, v) => setForm(f => ({ ...f, social: { ...f.social, [k]: v } }));
+
+  const [countyLoading, setCountyLoading] = React.useState(false);
+  const lookupCounty = async (city, state) => {
+    if (!city) return;
+    const q = [city, state].filter(Boolean).join(", ");
+    setCountyLoading(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=1`, { headers: { "Accept-Language": "es" } });
+      const results = await res.json();
+      if (results.length && results[0].address) {
+        const addr = results[0].address;
+        const county = addr.county || addr.state_district || addr.region || "";
+        if (county) set("county", county);
+      }
+    } catch(e) {}
+    setCountyLoading(false);
+  };
 
   const typeOpts = Object.keys(t.types).map(k => ({ value: k, label: t.types[k] }));
   const parentOpts = [{ value: "", label: lang === "es" ? "— Ninguna —" : "— None —" }, ...data.entities.map(e => ({ value: e.id, label: e.name }))];
@@ -287,9 +331,17 @@ const NewEntityForm = ({ t, lang, data, onClose, onSave, initialData, editMode }
           <div className="form-grid">
             <TextField full label={lang === "es" ? "Dirección completa" : "Full address"} value={form.address} onChange={v => set("address", v)} />
             <TextField label="ZIP" value={form.zip} onChange={v => set("zip", v)} />
-            <TextField label={lang === "es" ? "Ciudad" : "City"} value={form.city} onChange={v => set("city", v)} />
-            <TextField label={lang === "es" ? "Estado / Provincia" : "State / Province"} value={form.state} onChange={v => set("state", v)} />
+            <TextField label={lang === "es" ? "Ciudad" : "City"} value={form.city} onChange={v => set("city", v)} onBlur={() => lookupCounty(form.city, form.state)} />
+            <TextField label={lang === "es" ? "Estado / Provincia" : "State / Province"} value={form.state} onChange={v => set("state", v)} onBlur={() => lookupCounty(form.city, form.state)} />
             <TextField label={lang === "es" ? "País" : "Country"} value={form.country} onChange={v => set("country", v)} />
+            <div className="field">
+              <label>
+                {lang === "es" ? "Condado / Región" : "County / Region"}
+                {countyLoading && <span style={{ marginLeft: 6, color: "var(--accent)", fontSize: 10, fontWeight: 400 }}>detectando…</span>}
+                {form.county && !countyLoading && <span style={{ marginLeft: 6, color: "var(--good)", fontSize: 10, fontWeight: 600 }}>● auto</span>}
+              </label>
+              <input value={form.county || ""} onChange={e => set("county", e.target.value)} placeholder={lang === "es" ? "Se detecta al ingresar ciudad" : "Auto-detected from city"} />
+            </div>
           </div>
 
           <h4 style={{ margin: "18px 0 8px", fontSize: 12, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t.forms.socialBlock}</h4>
