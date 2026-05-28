@@ -1,5 +1,138 @@
 // PROMEZA CRM — Global tasks view
 
+// ─── Batch Task Modal ───
+const BatchTaskModal = ({ t, lang, data, onAddTask, users, currentUser, onClose }) => {
+  const [bRole, setBRole] = React.useState("all");
+  const [bStage, setBStage] = React.useState("all");
+  const [bCity, setBCity] = React.useState("");
+  const [bState, setBState] = React.useState("");
+  const [bTag, setBTag] = React.useState("");
+  const [bText, setBText] = React.useState("");
+  const [bDue, setBDue] = React.useState("");
+  const [bAssignee, setBAssignee] = React.useState(currentUser || "");
+  const [done, setDone] = React.useState(false);
+
+  const stages = window.PIPELINE_STAGES || [];
+  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
+
+  const matching = data.personas.filter(p => {
+    if (bRole !== "all" && p.role !== bRole) return false;
+    if (bStage !== "all" && stageOf(p) !== bStage) return false;
+    if (bCity && !(p.city || "").toLowerCase().includes(bCity.toLowerCase())) return false;
+    if (bState) {
+      const s = bState.toLowerCase();
+      const allStates = [p.state, ...((p.extraAddresses || []).map(a => a.state))];
+      if (!allStates.some(st => (st || "").toLowerCase().includes(s))) return false;
+    }
+    if (bTag && !(p.tags || []).some(tg => tg.toLowerCase().includes(bTag.toLowerCase()))) return false;
+    return true;
+  });
+
+  const assign = () => {
+    if (!bText.trim() || matching.length === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    matching.forEach(p => {
+      onAddTask(p.id, {
+        id: "t" + Date.now() + Math.random().toString(36).slice(2, 6),
+        text: bText.trim(), due: bDue, done: false,
+        createdAt: today, assignedTo: bAssignee || null,
+      });
+    });
+    setDone(true);
+  };
+
+  return (
+    <div className="modal-veil" onClick={onClose}>
+      <div className="modal" style={{ width: "min(560px,100%)" }} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div style={{ fontWeight: 600, fontSize: 15 }}>{lang === "es" ? "Asignación masiva de tareas" : "Batch task assignment"}</div>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" /></button>
+        </div>
+        <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {done ? (
+            <div style={{ textAlign: "center", padding: "32px 0" }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{lang === "es" ? `Tarea asignada a ${matching.length} personas` : `Task assigned to ${matching.length} people`}</div>
+              <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={onClose}>{lang === "es" ? "Cerrar" : "Close"}</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-100)", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "var(--ink-2)" }}>
+                {lang === "es" ? "Filtra el grupo y la tarea se asignará a todos los resultados de golpe." : "Filter a group and the task will be assigned to all results at once."}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div className="field" style={{ margin: 0 }}>
+                  <label>{lang === "es" ? "Cargo" : "Role"}</label>
+                  <select value={bRole} onChange={e => setBRole(e.target.value)}>
+                    <option value="all">{lang === "es" ? "Todos" : "All"}</option>
+                    {Object.keys(t.roles).map(k => <option key={k} value={k}>{t.roles[k]}</option>)}
+                  </select>
+                </div>
+                <div className="field" style={{ margin: 0 }}>
+                  <label>{lang === "es" ? "Etapa" : "Stage"}</label>
+                  <select value={bStage} onChange={e => setBStage(e.target.value)}>
+                    <option value="all">{lang === "es" ? "Todas" : "All"}</option>
+                    {stages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </select>
+                </div>
+                <div className="field" style={{ margin: 0 }}>
+                  <label>{lang === "es" ? "Ciudad" : "City"}</label>
+                  <input value={bCity} onChange={e => setBCity(e.target.value)} placeholder="Miami…" />
+                </div>
+                <div className="field" style={{ margin: 0 }}>
+                  <label>{lang === "es" ? "Estado / Prov." : "State / Prov."}</label>
+                  <input value={bState} onChange={e => setBState(e.target.value)} placeholder="FL…" />
+                </div>
+                <div className="field" style={{ margin: 0, gridColumn: "1 / -1" }}>
+                  <label>{lang === "es" ? "Etiqueta" : "Tag"}</label>
+                  <input value={bTag} onChange={e => setBTag(e.target.value)} placeholder="pastor, lider…" />
+                </div>
+              </div>
+              <div style={{
+                padding: "10px 14px", borderRadius: 8, textAlign: "center", fontWeight: 700, fontSize: 14,
+                background: matching.length === 0 ? "var(--bg-soft)" : "#f0fdf4",
+                color: matching.length === 0 ? "var(--ink-4)" : "#166534",
+                border: "1px solid " + (matching.length === 0 ? "var(--line)" : "#bbf7d0"),
+              }}>
+                {matching.length === 0
+                  ? (lang === "es" ? "Sin resultados para estos filtros" : "No results for these filters")
+                  : (lang === "es" ? `${matching.length} personas coinciden` : `${matching.length} people match`)}
+              </div>
+              <hr style={{ border: "none", borderTop: "1px solid var(--line)", margin: "0" }} />
+              <div className="field" style={{ margin: 0 }}>
+                <label>{lang === "es" ? "Descripción de la tarea" : "Task description"} *</label>
+                <input value={bText} onChange={e => setBText(e.target.value)} placeholder={lang === "es" ? "¿Qué hay que hacer?" : "What needs to be done?"} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div className="field" style={{ margin: 0 }}>
+                  <label>{lang === "es" ? "Fecha límite" : "Due date"}</label>
+                  <input type="date" value={bDue} onChange={e => setBDue(e.target.value)} />
+                </div>
+                <div className="field" style={{ margin: 0 }}>
+                  <label>{lang === "es" ? "Asignado a" : "Assigned to"}</label>
+                  <select value={bAssignee} onChange={e => setBAssignee(e.target.value)}>
+                    <option value="">{lang === "es" ? "Sin asignar" : "Unassigned"}</option>
+                    {(users || []).map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        {!done && (
+          <div className="modal-foot">
+            <button className="btn" onClick={onClose}>{lang === "es" ? "Cancelar" : "Cancel"}</button>
+            <button className="btn btn-primary" disabled={!bText.trim() || matching.length === 0} onClick={assign}>
+              <Icon name="check" /> {lang === "es" ? `Asignar a ${matching.length} personas` : `Assign to ${matching.length} people`}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Global tasks view ───
 const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, onDeleteTask, users, currentUser }) => {
   const [filterAssignee, setFilterAssignee] = React.useState("all");
   const [filterStatus, setFilterStatus] = React.useState("pending");
@@ -7,6 +140,7 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
   const [filterState, setFilterState] = React.useState("");
   const [filterZip, setFilterZip] = React.useState("");
   const [showForm, setShowForm] = React.useState(false);
+  const [showBatch, setShowBatch] = React.useState(false);
   const [form, setForm] = React.useState({ personaId: "", text: "", due: "", assignedTo: currentUser || "" });
 
   const today = new Date().toISOString().slice(0, 10);
@@ -100,10 +234,16 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
             )}
           </div>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowForm(v => !v)}>
-          <Icon name="plus" /> {lang === "es" ? "Nueva tarea" : "New task"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-sm" onClick={() => setShowBatch(true)}>
+            <Icon name="users" /> {lang === "es" ? "Asignar en lote" : "Batch assign"}
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowForm(v => !v)}>
+            <Icon name="plus" /> {lang === "es" ? "Nueva tarea" : "New task"}
+          </button>
+        </div>
       </div>
+      {showBatch && <BatchTaskModal t={t} lang={lang} data={data} onAddTask={onAddTask} users={users} currentUser={currentUser} onClose={() => setShowBatch(false)} />}
 
       {/* New task form */}
       {showForm && (

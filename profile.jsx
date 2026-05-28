@@ -129,6 +129,8 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
   const [linking, setLinking] = React.useState(false);
   const [linkEntityId, setLinkEntityId] = React.useState("");
   const [linkRole, setLinkRole] = React.useState("miembro");
+  const [entitySearch, setEntitySearch] = React.useState("");
+  const [showEntityDrop, setShowEntityDrop] = React.useState(false);
   if (!p) return <div className="empty">Not found</div>;
 
   const availableEntities = data.entities.filter(e => !p.entities.some(le => le.id === e.id));
@@ -185,8 +187,32 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
           <div className="vid" style={{ marginTop: 6 }}>VID {p.id.toUpperCase()}-{Math.abs(p.id.charCodeAt(1) * 7919) % 999999}</div>
         </div>
         <div className="actions">
-          <button className="btn" onClick={() => window.location.href = "mailto:" + p.email}><Icon name="mail" /> Email</button>
-          <button className="btn" onClick={() => window.location.href = "tel:" + p.phone}><Icon name="phone" /></button>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button className="btn" onClick={() => window.location.href = "mailto:" + p.email}><Icon name="mail" /> Email</button>
+            <button title={lang === "es" ? "Estado del email" : "Email status"}
+              onClick={() => {
+                const cycle = { "": "ok", "ok": "bad", "bad": "" };
+                onUpdatePerson && onUpdatePerson(p.id, { emailStatus: cycle[p.emailStatus || ""] });
+              }}
+              style={{ padding: "4px 7px", borderRadius: 6, border: "1.5px solid", fontSize: 11, fontWeight: 700, cursor: "pointer", background: "transparent",
+                borderColor: p.emailStatus === "ok" ? "var(--good)" : p.emailStatus === "bad" ? "var(--bad)" : "var(--line)",
+                color: p.emailStatus === "ok" ? "var(--good)" : p.emailStatus === "bad" ? "var(--bad)" : "var(--ink-4)" }}>
+              {p.emailStatus === "ok" ? "✓" : p.emailStatus === "bad" ? "✕" : "?"}
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <button className="btn" onClick={() => window.location.href = "tel:" + p.phone}><Icon name="phone" /></button>
+            <button title={lang === "es" ? "Estado del teléfono" : "Phone status"}
+              onClick={() => {
+                const cycle = { "": "ok", "ok": "bad", "bad": "" };
+                onUpdatePerson && onUpdatePerson(p.id, { phoneStatus: cycle[p.phoneStatus || ""] });
+              }}
+              style={{ padding: "4px 7px", borderRadius: 6, border: "1.5px solid", fontSize: 11, fontWeight: 700, cursor: "pointer", background: "transparent",
+                borderColor: p.phoneStatus === "ok" ? "var(--good)" : p.phoneStatus === "bad" ? "var(--bad)" : "var(--line)",
+                color: p.phoneStatus === "ok" ? "var(--good)" : p.phoneStatus === "bad" ? "var(--bad)" : "var(--ink-4)" }}>
+              {p.phoneStatus === "ok" ? "✓" : p.phoneStatus === "bad" ? "✕" : "?"}
+            </button>
+          </div>
           <button className="btn" style={{ color: "var(--good)", borderColor: "var(--good)" }}
             onClick={() => onUpdatePerson && onUpdatePerson(p.id, { lastContact: new Date().toISOString().slice(0, 10) })}>
             <Icon name="check" /> {lang === "es" ? "Contactado hoy" : "Contacted today"}
@@ -326,11 +352,42 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
           </h3>
           {linking && (
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "12px 16px", background: "var(--bg-soft)", borderBottom: "1px solid var(--line)", flexWrap: "wrap" }}>
-              <div className="field" style={{ margin: 0, flex: "1 1 180px" }}>
-                <label style={{ fontSize: 11 }}>{lang === "es" ? "Entidad" : "Entity"}</label>
-                <select value={linkEntityId} onChange={e => setLinkEntityId(e.target.value)}>
-                  {availableEntities.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                </select>
+              <div className="field" style={{ margin: 0, flex: "1 1 240px", position: "relative" }}>
+                <label style={{ fontSize: 11 }}>{lang === "es" ? "Buscar entidad" : "Search entity"}</label>
+                <input
+                  value={entitySearch}
+                  onChange={e => { setEntitySearch(e.target.value); setShowEntityDrop(true); setLinkEntityId(""); }}
+                  onFocus={() => setShowEntityDrop(true)}
+                  placeholder={lang === "es" ? "Nombre de la entidad…" : "Entity name…"}
+                  style={{ width: "100%" }}
+                />
+                {showEntityDrop && (
+                  <div style={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,.12)", zIndex: 200, maxHeight: 260, overflowY: "auto" }}>
+                    {availableEntities
+                      .filter(e => !entitySearch.trim() || e.name.toLowerCase().includes(entitySearch.toLowerCase()) || (e.city || "").toLowerCase().includes(entitySearch.toLowerCase()))
+                      .slice(0, 10)
+                      .map(e => (
+                        <div key={e.id}
+                          onClick={() => { setLinkEntityId(e.id); setEntitySearch(e.name); setShowEntityDrop(false); }}
+                          style={{ padding: "10px 14px", cursor: "pointer", borderBottom: "1px solid var(--line)", transition: "background .1s" }}
+                          onMouseEnter={ev => ev.currentTarget.style.background = "var(--bg-soft)"}
+                          onMouseLeave={ev => ev.currentTarget.style.background = ""}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{e.name}</div>
+                          <div style={{ fontSize: 11.5, color: "var(--ink-3)", display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
+                            {e.city && <span><Icon name="pin" size={10} /> {e.city}{e.state ? ", " + e.state : ""}</span>}
+                            {e.phone && <span><Icon name="phone" size={10} /> {e.phone}</span>}
+                            {e.type && <span style={{ color: "var(--accent)", fontWeight: 600 }}>{t.types[e.type] || e.type}</span>}
+                          </div>
+                        </div>
+                      ))
+                    }
+                    {availableEntities.filter(e => !entitySearch.trim() || e.name.toLowerCase().includes(entitySearch.toLowerCase())).length === 0 && (
+                      <div style={{ padding: "12px 14px", color: "var(--ink-4)", fontSize: 13 }}>
+                        {lang === "es" ? "Sin resultados" : "No results"}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="field" style={{ margin: 0, flex: "1 1 140px" }}>
                 <label style={{ fontSize: 11 }}>{lang === "es" ? "Cargo" : "Role"}</label>
@@ -339,8 +396,8 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
                 </select>
               </div>
               <div style={{ display: "flex", gap: 6, paddingBottom: 1 }}>
-                <button className="btn btn-sm btn-primary" onClick={doLinkEntity}><Icon name="check" /> {lang === "es" ? "Vincular" : "Link"}</button>
-                <button className="btn btn-sm" onClick={() => setLinking(false)}>{lang === "es" ? "Cancelar" : "Cancel"}</button>
+                <button className="btn btn-sm btn-primary" disabled={!linkEntityId} onClick={doLinkEntity}><Icon name="check" /> {lang === "es" ? "Vincular" : "Link"}</button>
+                <button className="btn btn-sm" onClick={() => { setLinking(false); setEntitySearch(""); setLinkEntityId(""); }}>{lang === "es" ? "Cancelar" : "Cancel"}</button>
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@
 window.PROMEZA_I18N = {
   es: {
     appName: "PROMEZA CRM",
-    appTag: "Base de datos relacional",
+    appTag: "Base de Datos",
     nav: {
       home: "Inicio", personas: "Personas", entities: "Entidades",
       map: "Mapa", search: "Buscar", tasks: "Tareas", myTasks: "Mis tareas",
@@ -37,7 +37,7 @@ window.PROMEZA_I18N = {
     types: {
       iglesia: "Iglesia", ong: "Organización sin fines de lucro",
       escuela: "Escuela", universidad: "Universidad", sinagoga: "Sinagoga",
-      estudio: "Estudio de grabación", oficina: "Oficina", otro: "Otro",
+      estudio: "Estudio de grabación", oficina: "Oficina", casa: "Casa / Domicilio", otro: "Otro",
     },
     home: {
       hello: "Bienvenido a PROMEZA CRM",
@@ -137,7 +137,7 @@ window.PROMEZA_I18N = {
   },
   en: {
     appName: "PROMEZA CRM",
-    appTag: "Relational database",
+    appTag: "Database",
     nav: {
       home: "Home", personas: "People", entities: "Entities",
       map: "Map", search: "Search", tasks: "Tasks", myTasks: "My tasks",
@@ -172,7 +172,7 @@ window.PROMEZA_I18N = {
     types: {
       iglesia: "Church", ong: "Nonprofit",
       escuela: "School", universidad: "University", sinagoga: "Synagogue",
-      estudio: "Recording studio", oficina: "Office", otro: "Other",
+      estudio: "Recording studio", oficina: "Office", casa: "Home / House", otro: "Other",
     },
     home: {
       hello: "Welcome to PROMEZA CRM",

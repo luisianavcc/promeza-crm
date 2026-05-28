@@ -548,6 +548,18 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
         />
       )}
 
+      {selected.size === 0 && rows.length > 0 && activeFilters > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", marginBottom: 12, background: "var(--accent-50)", border: "1px solid var(--accent-100)", borderRadius: 10, fontSize: 13 }}>
+          <span style={{ color: "var(--ink-2)" }}>
+            <strong>{rows.length}</strong> {lang === "es" ? "personas coinciden con los filtros" : "people match the filters"}
+          </span>
+          <button className="btn btn-sm btn-primary" style={{ marginLeft: "auto" }}
+            onClick={() => setSelected(new Set(rows.map(p => p.id)))}>
+            <Icon name="check" /> {lang === "es" ? `Seleccionar los ${rows.length}` : `Select all ${rows.length}`}
+          </button>
+        </div>
+      )}
+
       {selected.size > 0 && (
         <div style={{
           position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
