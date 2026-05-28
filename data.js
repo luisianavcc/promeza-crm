@@ -282,6 +282,15 @@ window.PROMEZA_DATA = (function () {
   return { entities, personas, comments, tasks };
 })();
 
+// ─── Deterministic 7-digit UID from any ID string ───
+window.getUID = function(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  }
+  return String((Math.abs(h) % 9000000) + 1000000);
+};
+
 // ─── Users (fixed list — edit here to add/remove accounts) ───
 window.PROMEZA_USERS = [
   { email: "betty@promeza.com",  name: "Betty García",   role: "admin"  },

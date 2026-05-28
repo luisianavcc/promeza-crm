@@ -4,7 +4,7 @@ const Sidebar = ({ route, go, t, counts, mobileOpen, onClose }) => {
   const items = [
     { id: "home",      label: t.nav.home,                  icon: "home" },
     { id: "personas",  label: t.nav.personas,              icon: "users",    count: counts.personas },
-    { id: "pipeline",  label: "Pipeline",                   icon: "chart" },
+    { id: "pipeline",  label: "Directorio",                 icon: "chart" },
     { id: "entities",  label: t.nav.entities,              icon: "building", count: counts.entities },
     { id: "projects",  label: t.nav.projects  || "Proyectos",  icon: "folder",   count: counts.projects  || null },
     { id: "tasks",     label: t.nav.tasks     || "Tareas",     icon: "check",    count: counts.pendingTasks || null, countStyle: counts.overdueCount > 0 ? { background: "#ef4444" } : null },

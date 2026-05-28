@@ -35,16 +35,17 @@ const Home = ({ t, lang, data, go }) => {
   const maxActivity = Math.max(1, ...Object.values(activityByDay));
   const totalActivity = Object.values(activityByDay).reduce((a, b) => a + b, 0);
 
-  // Top cities + counties
+  // Top cities
   const cityCounts = {};
   personas.forEach(p => { if (p.city) cityCounts[p.city] = (cityCounts[p.city] || 0) + 1; });
   const topCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const maxCity = topCities.length > 0 ? Math.max(...topCities.map(([, c]) => c)) : 1;
 
-  const countyCounts = {};
-  personas.forEach(p => { if (p.county) countyCounts[p.county] = (countyCounts[p.county] || 0) + 1; });
-  const topCounties = Object.entries(countyCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
-  const maxCounty = topCounties.length > 0 ? Math.max(...topCounties.map(([, c]) => c)) : 1;
+  // Recently registered (by lastContact as proxy — sorted desc, show mixed personas+entities)
+  const recentlyAdded = [
+    ...personas.map(p => ({ type: "persona", item: p, date: p.lastContact || "" })),
+    ...data.entities.map(e => ({ type: "entity", item: e, date: e.lastContact || e.founded || "" })),
+  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
 
   // Upcoming projects (next 30 days)
   const in30 = new Date(); in30.setDate(in30.getDate() + 30);
@@ -205,22 +206,25 @@ const Home = ({ t, lang, data, go }) => {
             </div>
           </div>
           <div style={{ padding: "10px 16px 14px" }}>
-            {topCounties.length > 0 && (
-              <>
-                <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 7 }}>Por condado</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 12 }}>
-                  {topCounties.map(([county, count], i) => (
-                    <div key={county} style={{ display: "flex", alignItems: "center", gap: 8, animation: "slideUp .3s ease-out both", animationDelay: (150 + i * 35) + "ms" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#ede9fe", padding: "1px 7px", borderRadius: 5, whiteSpace: "nowrap" }}>{county}</span>
-                      <div style={{ flex: 1, height: 5, borderRadius: 3, background: "var(--line)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", background: "linear-gradient(90deg, #7c3aed, #a78bfa)", width: Math.max(4, Math.round(count / maxCounty * 100)) + "%", borderRadius: 3, transition: "width .6s cubic-bezier(.34,1.56,.64,1)", transitionDelay: (200 + i * 40) + "ms" }} />
-                      </div>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-2)", minWidth: 18, textAlign: "right" }}>{count}</span>
-                    </div>
-                  ))}
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 7 }}>Recién registrados</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+              {recentlyAdded.map(({ type, item }, i) => (
+                <div key={item.id}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", animation: "slideUp .3s ease-out both", animationDelay: (100 + i * 40) + "ms" }}
+                  onClick={() => go({ name: type === "persona" ? "person" : "entity", id: item.id })}>
+                  {type === "persona"
+                    ? <div className="av-circle" style={{ background: item.color, width: 26, height: 26, fontSize: 9, flexShrink: 0 }}>{initials(fullName(item))}</div>
+                    : <div style={{ width: 26, height: 26, borderRadius: 7, background: "var(--accent-50)", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="building" size={12} /></div>
+                  }
+                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {type === "persona" ? fullName(item) : item.name}
+                  </span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10.5, color: "var(--accent)", background: "var(--accent-50)", padding: "1px 6px", borderRadius: 5, flexShrink: 0, fontWeight: 700 }}>
+                    #{window.getUID ? window.getUID(item.id) : item.id}
+                  </span>
                 </div>
-              </>
-            )}
+              ))}
+            </div>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 9 }}>Top ciudades</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 14px" }}>
               {topCities.map(([city, count], i) => (

@@ -721,7 +721,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
                     <div className="av-circle" style={{ background: p.color }}>{initials(fullName(p))}</div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 600 }}>{fullName(p)}</div>
-                      <div className="num">{p.id.toUpperCase()} · <span className={"status-dot " + (p.status === "inactivo" ? "off" : "")} />{t.common[p.status === "inactivo" ? "inactivos" : "activos"]}</div>
+                      <div className="num">#{window.getUID ? window.getUID(p.id) : p.id} · <span className={"status-dot " + (p.status === "inactivo" ? "off" : "")} />{t.common[p.status === "inactivo" ? "inactivos" : "activos"]}</div>
                     </div>
                   </div>
                 </td>
@@ -974,7 +974,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
                     <div className="ent-icon"><Icon name="building" /></div>
                     <div>
                       <div style={{ fontWeight: 600 }}>{e.name}</div>
-                      <div className="num">{e.id.toUpperCase()} · <span className={"status-dot " + ((e.status || "activo") === "inactivo" ? "off" : "")} />{t.common[(e.status || "activo") === "inactivo" ? "inactivos" : "activos"]}</div>
+                      <div className="num">#{window.getUID ? window.getUID(e.id) : e.id} · <span className={"status-dot " + ((e.status || "activo") === "inactivo" ? "off" : "")} />{t.common[(e.status || "activo") === "inactivo" ? "inactivos" : "activos"]}</div>
                     </div>
                   </div>
                 </td>

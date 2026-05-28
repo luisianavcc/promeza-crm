@@ -255,7 +255,12 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
           )}
         </div>
         <div className="meta">
-          <h1 className="name">{fullName(p)}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <h1 className="name" style={{ margin: 0 }}>{fullName(p)}</h1>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11.5, fontWeight: 700, color: "var(--accent)", background: "var(--accent-50)", padding: "2px 9px", borderRadius: 6, letterSpacing: ".04em", flexShrink: 0 }}>
+              #{window.getUID ? window.getUID(p.id) : p.id}
+            </span>
+          </div>
           <div className="sub">
             <span className="role-pill">{p.role === "otro" ? (p.roleOther || t.roles.otro) : t.roles[p.role]}</span>
             {(() => {
