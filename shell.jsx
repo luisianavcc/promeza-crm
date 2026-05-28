@@ -74,7 +74,8 @@ const Sidebar = ({ route, go, t, counts }) => {
 // ─── Notifications panel ───
 const NotificationsPanel = ({ data, lang, go, onClose }) => {
   const today = new Date().toISOString().slice(0, 10);
-  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
+  const in7 = new Date(); in7.setDate(in7.getDate() + 7);
+  const in7str = in7.toISOString().slice(0, 10);
 
   // Birthdays today / this week
   const todayDate = new Date();
@@ -101,14 +102,12 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
   });
   overdueItems.sort((a, b) => a.task.due.localeCompare(b.task.due));
 
-  // Stale contacts (90+ days)
-  const staleDate = new Date(); staleDate.setDate(staleDate.getDate() - 90);
-  const staleStr = staleDate.toISOString().slice(0, 10);
-  const stalePersonas = data.personas
-    .filter(p => stageOf(p) !== "inactivo" && (!p.lastContact || p.lastContact < staleStr))
-    .slice(0, 5);
+  // Upcoming projects (next 7 days)
+  const upcomingProjects = (data.projects || [])
+    .filter(pr => pr.dateStart && pr.dateStart >= today && pr.dateStart <= in7str && pr.status !== "cancelado")
+    .sort((a, b) => a.dateStart.localeCompare(b.dateStart));
 
-  const total = birthdayAlerts.length + overdueItems.length + stalePersonas.length;
+  const total = birthdayAlerts.length + overdueItems.length + upcomingProjects.length;
 
   return (
     <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 360, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "var(--shadow-lg)", zIndex: 500, overflow: "hidden" }}>
@@ -119,8 +118,30 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
       <div style={{ maxHeight: 420, overflowY: "auto" }}>
         {total === 0 && (
           <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
-            Todo al día — sin alertas pendientes
+            <div style={{ fontSize: 28, marginBottom: 8 }}>✓</div>
+            Todo al día — sin alertas
+          </div>
+        )}
+
+        {upcomingProjects.length > 0 && (
+          <div>
+            <div style={{ padding: "8px 16px 4px", fontSize: 10.5, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: ".06em" }}>Proyectos esta semana</div>
+            {upcomingProjects.map(pr => {
+              const types = window.PROJECT_TYPES || [];
+              const pt = types.find(t => t.id === pr.type) || { emoji: "📂", color: "#6366f1" };
+              const daysUntil = Math.round((new Date(pr.dateStart + "T12:00:00") - new Date(today + "T12:00:00")) / 86400000);
+              return (
+                <div key={pr.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+                  onClick={() => { go({ name: "project", id: pr.id }); onClose(); }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: pt.color + "18", display: "grid", placeItems: "center", fontSize: 16, flexShrink: 0 }}>{pt.emoji}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pr.name}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{fmtDate(pr.dateStart, lang)}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: pt.color, flexShrink: 0 }}>{daysUntil === 0 ? "Hoy" : "+" + daysUntil + "d"}</span>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -133,9 +154,7 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
                 <div className="av-circle" style={{ background: p.color, width: 32, height: 32, fontSize: 11, flexShrink: 0 }}>{initials(fullName(p))}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{fullName(p)}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                    {diff === 0 ? "Cumpleaños hoy" : "Cumpleaños en " + diff + " días"}
-                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{diff === 0 ? "Cumpleaños hoy" : "Cumpleaños en " + diff + " días"}</div>
                 </div>
                 <span style={{ fontSize: 18 }}>{diff === 0 ? "🎂" : "🎉"}</span>
               </div>
@@ -170,31 +189,13 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
             )}
           </div>
         )}
-
-        {stalePersonas.length > 0 && (
-          <div>
-            <div style={{ padding: "8px 16px 4px", fontSize: 10.5, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: ".06em" }}>Sin contacto +90 días</div>
-            {stalePersonas.map(p => (
-              <div key={p.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
-                onClick={() => { go({ name: "person", id: p.id }); onClose(); }}>
-                <div className="av-circle" style={{ background: p.color, width: 32, height: 32, fontSize: 11, flexShrink: 0 }}>{initials(fullName(p))}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{fullName(p)}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-                    {p.lastContact ? "Último contacto: " + fmtDate(p.lastContact, lang) : "Sin contacto registrado"}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
       <div style={{ padding: "10px 16px", borderTop: "1px solid var(--line)", display: "flex", gap: 8 }}>
-        <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => { go({ name: "tasks" }); onClose(); }}>
-          <Icon name="check" size={13} /> Ver tareas
+        <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => { go({ name: "projects" }); onClose(); }}>
+          <Icon name="folder" size={13} /> Proyectos
         </button>
-        <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => { go({ name: "personas" }); onClose(); }}>
-          <Icon name="users" size={13} /> Ver personas
+        <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => { go({ name: "tasks" }); onClose(); }}>
+          <Icon name="check" size={13} /> Tareas
         </button>
       </div>
     </div>
@@ -210,9 +211,8 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
 
   // Count notifications
   const today = new Date().toISOString().slice(0, 10);
-  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
-  const staleDate = new Date(); staleDate.setDate(staleDate.getDate() - 90);
-  const staleStr = staleDate.toISOString().slice(0, 10);
+  const in7 = new Date(); in7.setDate(in7.getDate() + 7);
+  const in7str = in7.toISOString().slice(0, 10);
   const todayDate = new Date();
   const dayOfYear = (d) => Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
   const todayDOY = dayOfYear(todayDate);
@@ -220,6 +220,8 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
   const notifCount = React.useMemo(() => {
     if (!data) return 0;
     let n = 0;
+    // upcoming projects this week
+    n += (data.projects || []).filter(pr => pr.dateStart && pr.dateStart >= today && pr.dateStart <= in7str && pr.status !== "cancelado").length;
     // birthdays this week
     n += data.personas.filter(p => {
       if (!p.birthday) return false;
@@ -230,8 +232,6 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
     }).length;
     // overdue tasks
     n += Object.values(data.tasks || {}).flat().filter(tk => !tk.done && tk.due && tk.due < today).length;
-    // stale contacts (capped at 99)
-    n += Math.min(99, data.personas.filter(p => stageOf(p) !== "inactivo" && (!p.lastContact || p.lastContact < staleStr)).length);
     return Math.min(99, n);
   }, [data, today]);
 

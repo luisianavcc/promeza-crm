@@ -111,7 +111,7 @@ const Home = ({ t, lang, data, go }) => {
           { label: "Entidades", value: entities.length, sub: "Organizaciones", color: "#0ea5e9", route: "entities" },
           { label: "Proyectos", value: (data.projects || []).length, sub: activeProjects + " en curso", color: activeProjects > 0 ? "var(--good)" : "var(--ink-4)", route: "projects" },
           { label: "Tareas pendientes", value: pendingTasks, sub: overdueTasks > 0 ? overdueTasks + " vencidas" : "Al día", color: overdueTasks > 0 ? "var(--bad)" : "var(--good)", route: "tasks" },
-          { label: "Sin contacto +90d", value: staleCount, sub: "Personas a revisar", color: staleCount > 0 ? "#f59e0b" : "var(--good)", route: "personas" },
+          { label: "Comprometidos", value: stageCounts["aliado"] || 0, sub: "Aliados confirmados", color: "#10b981", route: "pipeline" },
         ].map(kpi => (
           <div key={kpi.label} className="kpi" style={{ cursor: "pointer" }} onClick={() => go({ name: kpi.route })}>
             <div className="label">{kpi.label}</div>
