@@ -306,9 +306,10 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
     if (tagFilter && !(p.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (emailFilter && !(p.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
     if (phoneFilter && !(p.phone || "").toLowerCase().includes(phoneFilter.toLowerCase())) return false;
-    const searchStr = (fullName(p) + " " + (p.email || "") + " " + (p.phone || "") + " " + (p.city || "") + " " + (p.tags || []).join(" ")).toLowerCase();
-    if (q && !searchStr.includes(q.toLowerCase())) return false;
-    if (globalQ && !searchStr.includes(globalQ.toLowerCase())) return false;
+    const uid = window.getUID ? window.getUID(p.id) : "";
+    const searchStr = (fullName(p) + " " + (p.email || "") + " " + (p.phone || "") + " " + (p.city || "") + " " + (p.tags || []).join(" ") + " " + uid + " #" + uid).toLowerCase();
+    if (q && !searchStr.includes(q.toLowerCase().replace(/^#/, ""))) return false;
+    if (globalQ && !searchStr.includes(globalQ.toLowerCase().replace(/^#/, ""))) return false;
     return true;
   });
 
@@ -792,9 +793,10 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
     if (tagFilter && !(e.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (emailFilter && !(e.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
     if (phoneFilter && !(e.phone || "").toLowerCase().includes(phoneFilter.toLowerCase())) return false;
-    const searchStr = (e.name + " " + (e.email || "") + " " + (e.phone || "") + " " + (e.city || "") + " " + (e.country || "")).toLowerCase();
-    if (q && !searchStr.includes(q.toLowerCase())) return false;
-    if (globalQ && !searchStr.includes(globalQ.toLowerCase())) return false;
+    const uid = window.getUID ? window.getUID(e.id) : "";
+    const searchStr = (e.name + " " + (e.email || "") + " " + (e.phone || "") + " " + (e.city || "") + " " + (e.country || "") + " " + uid + " #" + uid).toLowerCase();
+    if (q && !searchStr.includes(q.toLowerCase().replace(/^#/, ""))) return false;
+    if (globalQ && !searchStr.includes(globalQ.toLowerCase().replace(/^#/, ""))) return false;
     return true;
   });
 

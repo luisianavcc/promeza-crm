@@ -283,18 +283,22 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
     const q = (query || "").trim().toLowerCase();
     if (!q || q.length < 2 || !data) return null;
     const norm = s => (s || "").toLowerCase();
+    const qClean = q.replace(/^#/, "");
+    const getUID = window.getUID || (() => "");
     const matchP = (p) =>
-      norm(p.first + " " + p.last).includes(q) ||
-      norm(p.email).includes(q) ||
-      norm((p.phone || "").replace(/\D/g, "")).includes(q.replace(/\D/g, "")) ||
-      norm(p.city).includes(q) ||
-      norm(p.role).includes(q) ||
-      (p.tags || []).some(tg => norm(tg).includes(q));
+      norm(p.first + " " + p.last).includes(qClean) ||
+      norm(p.email).includes(qClean) ||
+      norm((p.phone || "").replace(/\D/g, "")).includes(qClean.replace(/\D/g, "")) ||
+      norm(p.city).includes(qClean) ||
+      norm(p.role).includes(qClean) ||
+      (p.tags || []).some(tg => norm(tg).includes(qClean)) ||
+      getUID(p.id).includes(qClean);
     const matchE = (e) =>
-      norm(e.name).includes(q) ||
-      norm(e.email).includes(q) ||
-      norm(e.city).includes(q) ||
-      norm(e.phone).includes(q);
+      norm(e.name).includes(qClean) ||
+      norm(e.email).includes(qClean) ||
+      norm(e.city).includes(qClean) ||
+      norm(e.phone).includes(qClean) ||
+      getUID(e.id).includes(qClean);
     const matchPr = (pr) =>
       norm(pr.name).includes(q) ||
       norm(pr.description).includes(q) ||
@@ -445,9 +449,9 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
                       );
                     })}
                     {data.personas.filter(p => {
-                      const q = query.trim().toLowerCase();
+                      const q = query.trim().toLowerCase().replace(/^#/, "");
                       const norm = s => (s || "").toLowerCase();
-                      return norm(p.first + " " + p.last).includes(q) || norm(p.email).includes(q) || norm(p.city).includes(q);
+                      return norm(p.first + " " + p.last).includes(q) || norm(p.email).includes(q) || norm(p.city).includes(q) || (window.getUID ? window.getUID(p.id).includes(q) : false);
                     }).length > 5 && (
                       <div style={{ padding: "7px 16px", fontSize: 12, color: "var(--accent)", fontWeight: 600, cursor: "pointer", textAlign: "center" }}
                         onClick={() => { onSearchSubmit(); closeSearch(); }}>
