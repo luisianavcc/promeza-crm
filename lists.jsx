@@ -271,6 +271,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
   const [stageFilter, setStageFilter] = React.useState("all");
   const [langFilter, setLangFilter] = React.useState("all");
   const [city, setCity] = React.useState("");
+  const [countyFilter, setCountyFilter] = React.useState("");
   const [zip, setZip] = React.useState("");
   const [tagFilter, setTagFilter] = React.useState("");
   const [emailFilter, setEmailFilter] = React.useState("");
@@ -300,6 +301,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
     if (stageFilter !== "all" && stageOf(p) !== stageFilter) return false;
     if (langFilter !== "all" && p.language !== langFilter) return false;
     if (city && !(p.city || "").toLowerCase().includes(city.toLowerCase())) return false;
+    if (countyFilter && !(p.county || "").toLowerCase().includes(countyFilter.toLowerCase())) return false;
     if (zip && !(p.zip || "").toLowerCase().includes(zip.toLowerCase())) return false;
     if (tagFilter && !(p.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (emailFilter && !(p.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
@@ -310,19 +312,19 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
     return true;
   });
 
-  const activeFilters = [role !== "all", country !== "all", status !== "all", stageFilter !== "all", langFilter !== "all", city, zip, tagFilter, emailFilter, phoneFilter, q].filter(Boolean).length;
+  const activeFilters = [role !== "all", country !== "all", status !== "all", stageFilter !== "all", langFilter !== "all", city, countyFilter, zip, tagFilter, emailFilter, phoneFilter, q].filter(Boolean).length;
 
   const clearFilters = () => {
     setRole("all"); setCountry("all"); setStatus("all"); setStageFilter("all"); setLangFilter("all");
-    setCity(""); setZip(""); setTagFilter(""); setEmailFilter(""); setPhoneFilter(""); setQ("");
+    setCity(""); setCountyFilter(""); setZip(""); setTagFilter(""); setEmailFilter(""); setPhoneFilter(""); setQ("");
   };
 
-  const currentFilters = { role, country, status, stageFilter, langFilter, city, zip, tagFilter, emailFilter, phoneFilter, q };
+  const currentFilters = { role, country, status, stageFilter, langFilter, city, countyFilter, zip, tagFilter, emailFilter, phoneFilter, q };
   const loadSegment = (seg) => {
     const f = seg.filters;
     setRole(f.role || "all"); setCountry(f.country || "all"); setStatus(f.status || "all");
     setStageFilter(f.stageFilter || "all"); setLangFilter(f.langFilter || "all");
-    setCity(f.city || ""); setZip(f.zip || ""); setTagFilter(f.tagFilter || "");
+    setCity(f.city || ""); setCountyFilter(f.countyFilter || ""); setZip(f.zip || ""); setTagFilter(f.tagFilter || "");
     setEmailFilter(f.emailFilter || ""); setPhoneFilter(f.phoneFilter || ""); setQ(f.q || "");
     setShowFilters(true);
   };
@@ -358,6 +360,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
       { key: "direccion", label: "Dirección" },
       { key: "zip", label: "ZIP" },
       { key: "ciudad", label: "Ciudad" },
+      { key: "condado", label: "Condado" },
       { key: "estado", label: "Estado/Provincia" },
       { key: "pais", label: "País" },
       { key: "web", label: "Sitio web" },
@@ -387,6 +390,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
       direccion: p.address,
       zip: p.zip,
       ciudad: p.city,
+      condado: p.county,
       estado: p.state,
       pais: p.country,
       web: p.website,
@@ -447,6 +451,9 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
             </FField>
             <FField label={lang === "es" ? "Ciudad" : "City"}>
               <input value={city} onChange={e => setCity(e.target.value)} placeholder="Miami, Bogotá…" />
+            </FField>
+            <FField label={lang === "es" ? "Condado" : "County"}>
+              <input value={countyFilter} onChange={e => setCountyFilter(e.target.value)} placeholder={lang === "es" ? "Ventura, Los Ángeles…" : "Ventura, Los Angeles…"} />
             </FField>
             <FField label="ZIP">
               <input value={zip} onChange={e => setZip(e.target.value)} placeholder="33101…" />
@@ -736,7 +743,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
                   <div style={{ fontSize: 12.5 }}>{p.email}</div>
                   <div className="muted" style={{ fontSize: 12 }}>{p.phone}</div>
                 </td>
-                <td><div style={{ fontSize: 12.5 }}>{p.city}</div><div className="muted" style={{ fontSize: 12 }}>{p.country}</div></td>
+                <td><div style={{ fontSize: 12.5 }}>{p.city}{p.county ? <span style={{ color: "var(--accent)", marginLeft: 4, fontSize: 11, fontWeight: 600 }}>· {p.county}</span> : ""}</div><div className="muted" style={{ fontSize: 12 }}>{p.country}</div></td>
                 <td className="num">{fmtDate(p.lastContact, lang)}</td>
                 <td>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -758,6 +765,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
   const [country, setCountry] = React.useState("all");
   const [status, setStatus] = React.useState("all");
   const [city, setCity] = React.useState("");
+  const [countyFilter, setCountyFilter] = React.useState("");
   const [zip, setZip] = React.useState("");
   const [tagFilter, setTagFilter] = React.useState("");
   const [emailFilter, setEmailFilter] = React.useState("");
@@ -779,6 +787,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
     if (country !== "all" && e.country !== country) return false;
     if (status !== "all" && (e.status || "activo") !== status) return false;
     if (city && !(e.city || "").toLowerCase().includes(city.toLowerCase())) return false;
+    if (countyFilter && !(e.county || "").toLowerCase().includes(countyFilter.toLowerCase())) return false;
     if (zip && !(e.zip || "").toLowerCase().includes(zip.toLowerCase())) return false;
     if (tagFilter && !(e.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (emailFilter && !(e.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
@@ -789,11 +798,11 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
     return true;
   });
 
-  const activeFilters = [type !== "all", country !== "all", status !== "all", city, zip, tagFilter, emailFilter, phoneFilter, q].filter(Boolean).length;
+  const activeFilters = [type !== "all", country !== "all", status !== "all", city, countyFilter, zip, tagFilter, emailFilter, phoneFilter, q].filter(Boolean).length;
 
   const clearFilters = () => {
     setType("all"); setCountry("all"); setStatus("all");
-    setCity(""); setZip(""); setTagFilter(""); setEmailFilter(""); setPhoneFilter(""); setQ("");
+    setCity(""); setCountyFilter(""); setZip(""); setTagFilter(""); setEmailFilter(""); setPhoneFilter(""); setQ("");
   };
 
   const doExportCSV = () => {
@@ -806,6 +815,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
       { key: "direccion", label: "Dirección" },
       { key: "zip", label: "ZIP" },
       { key: "ciudad", label: "Ciudad" },
+      { key: "condado", label: "Condado" },
       { key: "estado", label: "Estado/Provincia" },
       { key: "pais", label: "País" },
       { key: "web", label: "Sitio web" },
@@ -827,6 +837,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
       direccion: e.address,
       zip: e.zip,
       ciudad: e.city,
+      condado: e.county,
       estado: e.state,
       pais: e.country,
       web: e.website,
@@ -882,6 +893,9 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
             </FField>
             <FField label={lang === "es" ? "Ciudad" : "City"}>
               <input value={city} onChange={e => setCity(e.target.value)} placeholder="Miami, Bogotá…" />
+            </FField>
+            <FField label={lang === "es" ? "Condado" : "County"}>
+              <input value={countyFilter} onChange={e => setCountyFilter(e.target.value)} placeholder={lang === "es" ? "Ventura, Los Ángeles…" : "Ventura, Los Angeles…"} />
             </FField>
             <FField label="ZIP">
               <input value={zip} onChange={e => setZip(e.target.value)} placeholder="33101…" />
@@ -965,7 +979,7 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
                   </div>
                 </td>
                 <td><span className="role-pill muted">{t.types[e.type]}</span></td>
-                <td><div style={{ fontSize: 12.5 }}>{e.city}</div><div className="muted" style={{ fontSize: 12 }}>{e.state}, {e.country}</div></td>
+                <td><div style={{ fontSize: 12.5 }}>{e.city}{e.county ? <span style={{ color: "var(--accent)", marginLeft: 4, fontSize: 11, fontWeight: 600 }}>· {e.county}</span> : ""}</div><div className="muted" style={{ fontSize: 12 }}>{e.state}, {e.country}</div></td>
                 <td>
                   <div style={{ fontSize: 12.5 }}>{e.email}</div>
                   <div className="muted" style={{ fontSize: 12 }}>{e.phone}</div>
