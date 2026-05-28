@@ -175,6 +175,14 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
   const [linkRole, setLinkRole] = React.useState("miembro");
   const [entitySearch, setEntitySearch] = React.useState("");
   const [showEntityDrop, setShowEntityDrop] = React.useState(false);
+  const [showCallMenu, setShowCallMenu] = React.useState(false);
+  const callMenuRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!showCallMenu) return;
+    const handler = (e) => { if (callMenuRef.current && !callMenuRef.current.contains(e.target)) setShowCallMenu(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showCallMenu]);
   if (!p) return <div className="empty">Not found</div>;
 
   const availableEntities = data.entities.filter(e => !p.entities.some(le => le.id === e.id));
@@ -289,16 +297,48 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
               {p.emailStatus === "ok" ? "✓ Verificado" : p.emailStatus === "bad" ? "⚠ Marcar OK" : "· Marcar como verificado"}
             </button>
           </div>
-          {/* Phone */}
+          {/* Phone + call options */}
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <div style={{ display: "flex", gap: 4 }}>
-              <button className="btn"
-                style={p.phoneStatus === "bad" ? { color: "var(--bad)", borderColor: "#fecaca", background: "#fff5f5" } : p.phoneStatus === "ok" ? { color: "var(--good)", borderColor: "#bbf7d0", background: "#f0fdf4" } : {}}
-                onClick={() => p.phone && (window.location.href = "tel:" + p.phone)}>
-                <Icon name="phone" />
-                {p.phoneStatus === "bad" ? (lang === "es" ? "No funciona" : "Not working") : (lang === "es" ? "Llamar" : "Call")}
-                {p.phoneStatus === "ok" && <span style={{ fontSize: 11, fontWeight: 700 }}>✓</span>}
-              </button>
+              <div style={{ position: "relative" }} ref={callMenuRef}>
+                <button className="btn"
+                  style={p.phoneStatus === "bad" ? { color: "var(--bad)", borderColor: "#fecaca", background: "#fff5f5" } : p.phoneStatus === "ok" ? { color: "var(--good)", borderColor: "#bbf7d0", background: "#f0fdf4" } : {}}
+                  onClick={() => p.phone && setShowCallMenu(v => !v)}>
+                  <Icon name="phone" />
+                  {p.phoneStatus === "bad" ? (lang === "es" ? "No funciona" : "Not working") : (lang === "es" ? "Llamar" : "Call")}
+                  {p.phoneStatus === "ok" && <span style={{ fontSize: 11, fontWeight: 700 }}>✓</span>}
+                  {p.phone && <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style={{ marginLeft: 2, opacity: .6 }}><path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </button>
+                {showCallMenu && p.phone && (
+                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "var(--shadow-lg)", zIndex: 200, minWidth: 180, overflow: "hidden" }}>
+                    <div style={{ padding: "6px 4px", borderBottom: "1px solid var(--line)", fontSize: 10.5, color: "var(--ink-3)", fontWeight: 600, textAlign: "center", letterSpacing: ".05em", textTransform: "uppercase" }}>
+                      Llamar a {p.first}
+                    </div>
+                    <div style={{ padding: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+                      <button className="btn" style={{ justifyContent: "flex-start", gap: 8, padding: "9px 12px" }}
+                        onClick={() => { window.location.href = "tel:" + p.phone; setShowCallMenu(false); }}>
+                        <Icon name="phone" size={14} />
+                        <div style={{ textAlign: "left" }}>
+                          <div style={{ fontWeight: 600, fontSize: 12.5 }}>Teléfono</div>
+                          <div style={{ fontSize: 11, color: "var(--ink-3)", fontFamily: "var(--font-mono)" }}>{p.phone}</div>
+                        </div>
+                      </button>
+                      <button className="btn" style={{ justifyContent: "flex-start", gap: 8, padding: "9px 12px", color: "#2D8CFF", borderColor: "#2D8CFF30", background: "#eff6ff" }}
+                        onClick={() => { window.open(p.zoom || "https://zoom.us/", "_blank"); setShowCallMenu(false); }}>
+                        <svg width="16" height="16" viewBox="0 0 40 40" fill="none">
+                          <rect width="40" height="40" rx="9" fill="#2D8CFF"/>
+                          <path d="M7 14a3 3 0 013-3h14a3 3 0 013 3v12a3 3 0 01-3 3H10a3 3 0 01-3-3V14z" fill="white"/>
+                          <path d="M27 17l6-4v14l-6-4V17z" fill="white"/>
+                        </svg>
+                        <div style={{ textAlign: "left" }}>
+                          <div style={{ fontWeight: 600, fontSize: 12.5 }}>Zoom</div>
+                          <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{p.zoom ? "Abrir enlace guardado" : "Abrir Zoom"}</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               {p.phone && (
                 <button className="btn" title="WhatsApp"
                   style={{ padding: "0 10px", color: "#25D366", borderColor: "#25D36640", background: "#f0fdf4" }}

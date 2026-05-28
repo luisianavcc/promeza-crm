@@ -43,10 +43,17 @@ const AuthScreen = ({ onLogin }) => {
     <div className="auth-veil">
       <div className="auth-card">
         <div className="auth-brand">
-          <div className="brand-mark" style={{ width: 48, height: 48, fontSize: 22, borderRadius: 12 }}>P</div>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: "linear-gradient(135deg, #0f172a 0%, #14532d 100%)", display: "grid", placeItems: "center", boxShadow: "0 0 18px rgba(132,204,22,.3)", flexShrink: 0 }}>
+            <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+              <path d="M14 3C9.58 3 6 6.58 6 11c0 2.83 1.4 5.33 3.55 6.88V20a1 1 0 001 1h6.9a1 1 0 001-1v-2.12C20.6 16.33 22 13.83 22 11c0-4.42-3.58-8-8-8z" fill="#a3e635" fillOpacity=".9"/>
+              <path d="M10.5 22h7" stroke="#a3e635" strokeWidth="1.8" strokeLinecap="round"/>
+              <path d="M11.5 25h5" stroke="#a3e635" strokeWidth="1.8" strokeLinecap="round"/>
+              <path d="M14 3v-2M7 5l-1.5-1.5M21 5l1.5-1.5M5 11H3M23 11h2" stroke="#a3e635" strokeWidth="1.5" strokeLinecap="round" strokeOpacity=".55"/>
+            </svg>
+          </div>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-.02em" }}>PROMEZA CRM</div>
-            <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 1 }}>Base de datos relacional</div>
+            <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-.02em" }}>PROME<span style={{ color: "#84cc16" }}>ZA</span></div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".18em", color: "var(--ink-3)", textTransform: "uppercase", marginTop: 1 }}>Base de Datos</div>
           </div>
         </div>
 
