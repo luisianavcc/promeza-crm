@@ -268,7 +268,7 @@ const NotificationsPanel = ({ data, lang, go, onClose, dupCount = 0 }) => {
   );
 };
 
-const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, userEmail, data, go, onMenuToggle, dupCount = 0 }) => {
+const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, userEmail, data, go, onMenuToggle, dupCount = 0, onGoBack, canGoBack }) => {
   const [showNotif, setShowNotif] = React.useState(false);
   const [showSearch, setShowSearch] = React.useState(false);
   const notifRef = React.useRef(null);
@@ -362,6 +362,23 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
       <button className="menu-toggle" onClick={onMenuToggle} aria-label="Menu">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
           <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+        </svg>
+      </button>
+      {/* Back button */}
+      <button
+        className="icon-btn"
+        onClick={onGoBack}
+        disabled={!canGoBack}
+        title="Atrás"
+        style={{
+          opacity: canGoBack ? 1 : 0.25,
+          cursor: canGoBack ? "pointer" : "default",
+          flexShrink: 0,
+          transition: "opacity .2s",
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="11 4 6 9 11 14" />
         </svg>
       </button>
       {/* Search with live dropdown */}

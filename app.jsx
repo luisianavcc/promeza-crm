@@ -322,10 +322,21 @@ const App = () => {
     }
   }, []); // run once on mount
 
+  const [routeHistory, setRouteHistory] = useState([]);
+
   const go = (r) => {
     if (r.name === "new-person") { setModalPrefill(r.prefill || null); setModal("new-person"); return; }
     if (r.name === "new-entity") { setModalPrefill(r.prefill || null); setModal("new-entity"); return; }
+    setRouteHistory(h => [...h.slice(-19), route]);
     setRoute(r);
+    window.scrollTo({ top: 0 });
+  };
+
+  const goBack = () => {
+    if (routeHistory.length === 0) return;
+    const prev = routeHistory[routeHistory.length - 1];
+    setRouteHistory(h => h.slice(0, -1));
+    setRoute(prev);
     window.scrollTo({ top: 0 });
   };
 
@@ -790,6 +801,8 @@ const App = () => {
         go={go}
         onMenuToggle={() => setSideOpen(v => !v)}
         dupCount={counts.dups}
+        onGoBack={goBack}
+        canGoBack={routeHistory.length > 0}
       />
       <main className="main">{view}</main>
 

@@ -104,14 +104,33 @@ const Home = ({ t, lang, data, go }) => {
 
   return (
     <div style={{ animation: "fadeIn .3s ease-out" }}>
-      <div className="page-head">
-        <div>
-          <h1 className="page-title">{t.home.hello}</h1>
-          <div className="page-sub">{new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
+      {/* PROMEZA Marketing Group Logo Banner */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #14532d 100%)", borderRadius: 16, padding: "20px 28px", marginBottom: 20, boxShadow: "0 4px 24px rgba(0,0,0,.18)" }}>
+        {/* Light bulb icon */}
+        <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 14, background: "rgba(163,230,53,.12)", border: "1.5px solid rgba(163,230,53,.3)", display: "grid", placeItems: "center", boxShadow: "0 0 24px rgba(132,204,22,.25)" }}>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <path d="M14 3C9.58 3 6 6.58 6 11c0 2.83 1.4 5.33 3.55 6.88V20a1 1 0 001 1h6.9a1 1 0 001-1v-2.12C20.6 16.33 22 13.83 22 11c0-4.42-3.58-8-8-8z" fill="#a3e635" fillOpacity=".85"/>
+            <path d="M10.5 22h7" stroke="#a3e635" strokeWidth="1.8" strokeLinecap="round"/>
+            <path d="M11.5 25h5" stroke="#a3e635" strokeWidth="1.8" strokeLinecap="round"/>
+            <path d="M14 3v-2M7 5l-1.5-1.5M21 5l1.5-1.5M5 11H3M23 11h2" stroke="#a3e635" strokeWidth="1.6" strokeLinecap="round" strokeOpacity=".6"/>
+          </svg>
         </div>
-        <div className="page-actions">
-          <button className="btn" onClick={() => go({ name: "new-entity" })}><Icon name="plus" /> {t.nav.newEntity}</button>
-          <button className="btn btn-primary" onClick={() => go({ name: "new-person" })}><Icon name="plus" /> {t.nav.newPerson}</button>
+        <div>
+          <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.01em", color: "#f8fafc", lineHeight: 1.1, fontFamily: "var(--font-sans)" }}>
+            PROME<span style={{ color: "#a3e635" }}>ZA</span>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".2em", color: "#a3e635", textTransform: "uppercase", marginTop: 2 }}>
+            Marketing Group
+          </div>
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: "#f8fafc" }}>{t.home.hello}</div>
+          <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <button className="btn" style={{ background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.15)", color: "#f8fafc" }} onClick={() => go({ name: "new-entity" })}><Icon name="plus" /> {t.nav.newEntity}</button>
+          <button className="btn" style={{ background: "#a3e635", color: "#0f172a", fontWeight: 700, border: "none" }} onClick={() => go({ name: "new-person" })}><Icon name="plus" /> {t.nav.newPerson}</button>
         </div>
       </div>
 
