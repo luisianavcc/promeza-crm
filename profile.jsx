@@ -195,9 +195,11 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
   })).filter(x => x.entity);
 
   const pendingTasks = (tasks || []).filter(tk => !tk.done).length;
+  const personProjectCount = (data.projects || []).filter(pr => (pr.members || []).some(m => m.personaId === p.id)).length;
   const tabs = [
     { id: "details", label: t.common.details },
     { id: "links", label: t.common.relatedEntities + " (" + linkedEntities.length + ")" },
+    { id: "projects", label: (lang === "es" ? "Proyectos" : "Projects") + (personProjectCount > 0 ? " (" + personProjectCount + ")" : "") },
     { id: "interactions", label: (lang === "es" ? "Interacciones" : "Interactions") + " (" + (interactions || []).length + ")" },
     { id: "tasks", label: (lang === "es" ? "Tareas" : "Tasks") + (pendingTasks > 0 ? " (" + pendingTasks + ")" : "") },
     { id: "comments", label: t.common.comments + " (" + (data.comments[p.id] || []).length + ")" },
@@ -528,6 +530,16 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === "projects" && (
+        <div className="section">
+          <h3 style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            {lang === "es" ? "Proyectos" : "Projects"}
+            <button className="btn btn-sm" onClick={() => go({ name: "projects" })}>{lang === "es" ? "Ver todos →" : "View all →"}</button>
+          </h3>
+          <PersonProjectsTab personId={p.id} lang={lang} data={data} go={go} />
         </div>
       )}
 

@@ -248,6 +248,7 @@ const App = () => {
           changelog: parsed.changelog || {},
           segments: parsed.segments || [],
           attachments: parsed.attachments || {},
+          projects: parsed.projects || [],
         };
       }
     } catch {}
@@ -260,6 +261,7 @@ const App = () => {
       changelog: {},
       segments: [],
       attachments: {},
+      projects: [],
     };
   });
 
@@ -277,7 +279,7 @@ const App = () => {
   const allTasksFlat = Object.values(data.tasks).flat();
   const pendingTasks = allTasksFlat.filter(t => !t.done).length;
   const overdueCount = allTasksFlat.filter(t => t.due && !t.done && t.due < new Date().toISOString().slice(0, 10)).length;
-  const counts = { personas: data.personas.length, entities: data.entities.length, dups: dupPairs.filter(p => !p.dismissed).length, pendingTasks: pendingTasks || null, overdueCount };
+  const counts = { personas: data.personas.length, entities: data.entities.length, dups: dupPairs.filter(p => !p.dismissed).length, pendingTasks: pendingTasks || null, overdueCount, projects: (data.projects || []).length || null };
 
   const addComment = (targetId, text) => {
     setData(d => {
@@ -468,6 +470,28 @@ const App = () => {
     }));
   };
 
+  const addProject = (form) => {
+    const id = "proj" + Date.now();
+    setData(d => ({ ...d, projects: [{ id, ...form, members: [], createdAt: new Date().toISOString() }, ...d.projects] }));
+    setRoute({ name: "project", id });
+  };
+
+  const updateProject = (id, updates) => {
+    setData(d => ({ ...d, projects: d.projects.map(p => p.id === id ? { ...p, ...updates } : p) }));
+  };
+
+  const deleteProject = (id) => {
+    setData(d => ({ ...d, projects: d.projects.filter(p => p.id !== id) }));
+  };
+
+  const addProjectMember = (projectId, member) => {
+    setData(d => ({ ...d, projects: d.projects.map(p => p.id === projectId ? { ...p, members: [...(p.members || []), member] } : p) }));
+  };
+
+  const removeProjectMember = (projectId, personaId) => {
+    setData(d => ({ ...d, projects: d.projects.map(p => p.id === projectId ? { ...p, members: (p.members || []).filter(m => m.personaId !== personaId) } : p) }));
+  };
+
   const handleBulkDeletePersonas = (ids) => {
     if (!confirm(lang === "es" ? `¿Eliminar ${ids.size} personas seleccionadas? Esta acción no se puede deshacer.` : `Delete ${ids.size} selected people? This cannot be undone.`)) return;
     setData(d => ({ ...d, personas: d.personas.filter(p => !ids.has(p.id)) }));
@@ -654,6 +678,8 @@ const App = () => {
       currentUser={userEmail} users={window.PROMEZA_USERS || []}
     />; break;
     case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} changelog={data.changelog[route.id] || []} attachments={data.attachments[route.id] || []} onAddAttachment={(att) => addAttachment(route.id, att)} onDeleteAttachment={(attId) => deleteAttachment(route.id, attId)} />; break;
+    case "projects": view = <ProjectsListView lang={lang} data={data} go={go} onAddProject={addProject} />; break;
+    case "project": view = <ProjectDetailView id={route.id} lang={lang} data={data} go={go} onUpdateProject={updateProject} onDeleteProject={deleteProject} onAddMember={addProjectMember} onRemoveMember={removeProjectMember} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
     case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onMergeWithData={handleMergeWithData} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;
     default: view = <Home t={t} lang={lang} data={data} go={go} />;

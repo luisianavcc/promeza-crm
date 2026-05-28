@@ -46,6 +46,7 @@ const Icon = ({ name, size = 16, className = "" }) => {
     case "git-merge": return <svg {...common}><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M6 8.5v7M8.5 6h5.5a2 2 0 0 1 2 2v3.5M13.5 18H6"/></svg>;
     case "chart": return <svg {...common}><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>;
     case "clock": return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>;
+    case "folder": return <svg {...common}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>;
     case "shield": return <svg {...common}><path d="M12 3l8 4v5c0 4.4-3.3 8.5-8 9.9C7.3 20.5 4 16.4 4 12V7z"/></svg>;
     case "zap": return <svg {...common}><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg>;
     default: return null;
