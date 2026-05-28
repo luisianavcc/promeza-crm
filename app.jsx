@@ -243,8 +243,15 @@ const App = () => {
       const saved = localStorage.getItem("promeza_data");
       if (saved) {
         const parsed = JSON.parse(saved);
+        // Merge any new personas/entities from PROMEZA_DATA not yet in localStorage
+        const savedPersonaIds = new Set((parsed.personas || []).map(p => p.id));
+        const newPersonas = window.PROMEZA_DATA.personas.filter(p => !savedPersonaIds.has(p.id));
+        const savedEntityIds = new Set((parsed.entities || []).map(e => e.id));
+        const newEntities = window.PROMEZA_DATA.entities.filter(e => !savedEntityIds.has(e.id));
         return {
           ...parsed,
+          personas: [...(parsed.personas || []), ...newPersonas],
+          entities: [...(parsed.entities || []), ...newEntities],
           interactions: parsed.interactions || {},
           tasks: parsed.tasks || {},
           changelog: parsed.changelog || {},
