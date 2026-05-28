@@ -870,6 +870,62 @@ button { font-family: inherit; }
   border-radius: 10px; padding: 14px; margin-top: 12px;
 }
 
+/* ─── Animations ─── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .6; transform: scale(1.15); }
+}
+
+/* Alert chips in profile */
+.alert-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 8px;
+  font-size: 12px; font-weight: 600;
+  transition: filter .1s;
+}
+.alert-chip:hover { filter: brightness(.97); }
+
+/* Profile actions column */
+.profile-head .actions > div,
+.profile-head .actions > button {
+  animation: fadeIn .15s ease-out both;
+}
+.profile-head .actions > *:nth-child(1) { animation-delay: .04s; }
+.profile-head .actions > *:nth-child(2) { animation-delay: .07s; }
+.profile-head .actions > *:nth-child(3) { animation-delay: .10s; }
+.profile-head .actions > *:nth-child(4) { animation-delay: .13s; }
+
+/* Completeness bar */
+.completeness-bar {
+  height: 3px; border-radius: 4px;
+  transition: width .4s cubic-bezier(.4,0,.2,1);
+}
+
+/* Profile head avatar hover */
+.profile-head .av-circle.xl {
+  transition: box-shadow .2s, transform .2s;
+}
+.profile-head .av-circle.xl:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+}
+
+/* Status toggle text hover */
+.status-toggle-text {
+  border: none; background: none; cursor: pointer;
+  font-size: 10.5px; padding: 0 2px; font-family: inherit;
+  text-align: left; transition: opacity .1s; opacity: .7;
+}
+.status-toggle-text:hover { opacity: 1; text-decoration: underline; }
+
 .auth-footer {
   text-align: center; font-size: 11px;
   color: rgba(255,255,255,.25);

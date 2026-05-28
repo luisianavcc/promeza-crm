@@ -209,10 +209,10 @@ window.PROMEZA_USERS = [
 // ─── Pipeline stages ───
 window.PIPELINE_STAGES = [
   { id: "nuevo",       label: "Nuevo",          color: "#6366f1", bg: "#6366f115" },
-  { id: "conocido",    label: "Conocido",        color: "#0ea5e9", bg: "#0ea5e915" },
-  { id: "seguimiento", label: "En seguimiento",  color: "#f59e0b", bg: "#f59e0b15" },
-  { id: "aliado",      label: "Aliado",          color: "#10b981", bg: "#10b98115" },
-  { id: "inactivo",    label: "Inactivo",        color: "#94a3b8", bg: "#94a3b815" },
+  { id: "conocido",    label: "Contactado",      color: "#0ea5e9", bg: "#0ea5e915" },
+  { id: "seguimiento", label: "En proceso",      color: "#f59e0b", bg: "#f59e0b15" },
+  { id: "aliado",      label: "Comprometido",    color: "#10b981", bg: "#10b98115" },
+  { id: "inactivo",    label: "Archivado",       color: "#94a3b8", bg: "#94a3b815" },
 ];
 
 // ─── Contact sources ───

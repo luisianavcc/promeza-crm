@@ -1,5 +1,49 @@
 // PROMEZA CRM — Profile pages (Person + Entity)
 
+// ─── Smart alerts ───
+const getPersonAlerts = (p, lang) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const es = lang === "es";
+  const out = [];
+
+  if (p.emailStatus === "bad")
+    out.push({ level: "error", key: "ebad", icon: "alert", msg: es ? "Email no funciona o rebota" : "Email bouncing or invalid" });
+  if (p.phoneStatus === "bad")
+    out.push({ level: "error", key: "pbad", icon: "alert", msg: es ? "Teléfono fuera de servicio" : "Phone not reachable" });
+  if (!p.email)
+    out.push({ level: "warn", key: "noemail", icon: "mail", msg: es ? "Sin dirección de email" : "No email address" });
+  if (!p.phone)
+    out.push({ level: "warn", key: "nophone", icon: "phone", msg: es ? "Sin número de teléfono" : "No phone number" });
+  if (p.nextAction && p.nextAction < today && p.status !== "inactivo") {
+    const d = Math.round((new Date(today) - new Date(p.nextAction)) / 86400000);
+    out.push({ level: "error", key: "overdue", icon: "calendar", msg: es ? `Acción vencida hace ${d} día${d !== 1 ? "s" : ""}` : `Action overdue by ${d} day${d !== 1 ? "s" : ""}` });
+  }
+  if (!p.nextAction && p.status !== "inactivo" && p.stage !== "inactivo")
+    out.push({ level: "info", key: "noact", icon: "calendar", msg: es ? "Sin próxima acción programada" : "No next action set" });
+  if (p.lastContact && p.status !== "inactivo") {
+    const d = Math.round((new Date(today) - new Date(p.lastContact)) / 86400000);
+    if (d > 180) out.push({ level: "warn", key: "stale", icon: "clock", msg: es ? `Sin contacto en ${d} días` : `No contact in ${d} days` });
+  } else if (!p.lastContact && p.status !== "inactivo") {
+    out.push({ level: "info", key: "nolast", icon: "clock", msg: es ? "Sin registro de contacto previo" : "No contact history" });
+  }
+  if (p.birthday) {
+    const bday = new Date(p.birthday);
+    const yr = new Date(today).getFullYear();
+    let bdThis = new Date(yr, bday.getMonth(), bday.getDate()).toISOString().slice(0, 10);
+    if (bdThis < today) bdThis = new Date(yr + 1, bday.getMonth(), bday.getDate()).toISOString().slice(0, 10);
+    const d = Math.round((new Date(bdThis) - new Date(today)) / 86400000);
+    if (d <= 14) out.push({ level: "good", key: "bday", icon: "star", msg: es ? (d === 0 ? "🎂 ¡Cumpleaños hoy!" : `Cumpleaños en ${d} días`) : (d === 0 ? "🎂 Birthday today!" : `Birthday in ${d} days`) });
+  }
+  if (!p.city && !p.country)
+    out.push({ level: "info", key: "noloc", icon: "pin", msg: es ? "Sin ubicación registrada" : "No location recorded" });
+  return out;
+};
+
+const getCompleteness = (p) => {
+  const checks = [!!p.email, !!p.phone, !!p.address, !!p.city, !!p.country, !!p.birthday, !!p.lastContact, (p.entities || []).length > 0, (p.tags || []).length > 0];
+  return Math.round(checks.filter(Boolean).length / checks.length * 100);
+};
+
 const Tabs = ({ tabs, active, onChange }) => (
   <div className="tabs">
     {tabs.map(t => (
@@ -162,8 +206,29 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
     { id: "map", label: t.common.map },
   ];
 
+  const personAlerts = getPersonAlerts(p, lang);
+  const completeness = getCompleteness(p);
+  const today = new Date().toISOString().slice(0, 10);
+  const daysSinceContact = p.lastContact ? Math.round((new Date(today) - new Date(p.lastContact)) / 86400000) : null;
+
+  const cycleEmailStatus = () => {
+    const cycle = { "": "ok", "ok": "bad", "bad": "" };
+    onUpdatePerson && onUpdatePerson(p.id, { emailStatus: cycle[p.emailStatus || ""] });
+  };
+  const cyclePhoneStatus = () => {
+    const cycle = { "": "ok", "ok": "bad", "bad": "" };
+    onUpdatePerson && onUpdatePerson(p.id, { phoneStatus: cycle[p.phoneStatus || ""] });
+  };
+
+  const alertColors = {
+    error: { bg: "#fff5f5", border: "#fecaca", text: "#dc2626" },
+    warn:  { bg: "#fffbeb", border: "#fde68a", text: "#b45309" },
+    info:  { bg: "#f0f9ff", border: "#bae6fd", text: "#0369a1" },
+    good:  { bg: "#f0fdf4", border: "#bbf7d0", text: "#166534" },
+  };
+
   return (
-    <div>
+    <div style={{ animation: "fadeIn .2s ease-out" }}>
       <div style={{ marginBottom: 8 }}>
         <button className="btn btn-ghost btn-sm" onClick={() => go({ name: "personas" })}>
           ← {t.common.back}
@@ -171,7 +236,14 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
       </div>
 
       <div className="profile-head">
-        <div className="av-circle xl" style={{ background: p.color }}>{initials(fullName(p))}</div>
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <div className="av-circle xl" style={{ background: p.color }}>{initials(fullName(p))}</div>
+          {completeness < 100 && (
+            <div title={`Perfil ${completeness}% completo`} style={{ position: "absolute", bottom: -2, right: -2, width: 20, height: 20, borderRadius: "50%", background: completeness >= 80 ? "var(--good)" : completeness >= 50 ? "var(--warn)" : "var(--bad)", border: "2px solid var(--bg)", display: "grid", placeItems: "center", fontSize: 8, fontWeight: 800, color: "#fff", cursor: "default" }}>
+              {completeness < 50 ? "!" : ""}
+            </div>
+          )}
+        </div>
         <div className="meta">
           <h1 className="name">{fullName(p)}</h1>
           <div className="sub">
@@ -179,38 +251,62 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
             {(() => {
               const stageId = p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
               const st = (window.PIPELINE_STAGES || []).find(s => s.id === stageId);
-              return st ? <span style={{ padding: "2px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600, background: st.bg, color: st.color, border: "1px solid " + st.color + "40" }}>{st.label}</span> : null;
+              return st ? <span style={{ padding: "3px 10px", borderRadius: 12, fontSize: 11.5, fontWeight: 700, letterSpacing: ".01em", background: st.bg, color: st.color, border: "1px solid " + st.color + "40" }}>{st.label}</span> : null;
             })()}
-            <span><Icon name="pin" /> {p.city}, {p.country}</span>
-            {p.tags.map(tg => <span key={tg} className="tag-chip">{tg}</span>)}
+            {p.city && <span><Icon name="pin" /> {p.city}{p.country ? ", " + p.country : ""}</span>}
+            {daysSinceContact !== null && (
+              <span style={{ fontSize: 12, color: daysSinceContact > 180 ? "var(--bad)" : daysSinceContact > 90 ? "var(--warn)" : "var(--ink-3)" }}>
+                <Icon name="calendar" size={12} /> {daysSinceContact === 0 ? (lang === "es" ? "contactado hoy" : "contacted today") : lang === "es" ? `${daysSinceContact}d sin contacto` : `${daysSinceContact}d no contact`}
+              </span>
+            )}
+            {p.tags && p.tags.map(tg => <span key={tg} className="tag-chip">{tg}</span>)}
           </div>
-          <div className="vid" style={{ marginTop: 6 }}>VID {p.id.toUpperCase()}-{Math.abs(p.id.charCodeAt(1) * 7919) % 999999}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <div className="vid">VID {p.id.toUpperCase()}-{Math.abs(p.id.charCodeAt(1) * 7919) % 999999}</div>
+            {completeness < 100 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 60, height: 4, background: "var(--line)", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ width: completeness + "%", height: "100%", background: completeness >= 80 ? "var(--good)" : completeness >= 50 ? "var(--warn)" : "var(--bad)", borderRadius: 4, transition: "width .3s" }} />
+                </div>
+                <span style={{ fontSize: 10.5, color: "var(--ink-4)", fontFamily: "var(--font-mono)" }}>{completeness}%</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="actions">
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <button className="btn" onClick={() => window.location.href = "mailto:" + p.email}><Icon name="mail" /> Email</button>
-            <button title={lang === "es" ? "Estado del email" : "Email status"}
-              onClick={() => {
-                const cycle = { "": "ok", "ok": "bad", "bad": "" };
-                onUpdatePerson && onUpdatePerson(p.id, { emailStatus: cycle[p.emailStatus || ""] });
-              }}
-              style={{ padding: "4px 7px", borderRadius: 6, border: "1.5px solid", fontSize: 11, fontWeight: 700, cursor: "pointer", background: "transparent",
-                borderColor: p.emailStatus === "ok" ? "var(--good)" : p.emailStatus === "bad" ? "var(--bad)" : "var(--line)",
-                color: p.emailStatus === "ok" ? "var(--good)" : p.emailStatus === "bad" ? "var(--bad)" : "var(--ink-4)" }}>
-              {p.emailStatus === "ok" ? "✓" : p.emailStatus === "bad" ? "✕" : "?"}
+          {/* Email */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <button className="btn"
+              style={p.emailStatus === "bad" ? { color: "var(--bad)", borderColor: "#fecaca", background: "#fff5f5" } : p.emailStatus === "ok" ? { color: "var(--good)", borderColor: "#bbf7d0", background: "#f0fdf4" } : {}}
+              onClick={() => p.email && (window.location.href = "mailto:" + p.email)}>
+              <Icon name="mail" />
+              {p.emailStatus === "bad" ? (lang === "es" ? "No funciona" : "Not working") : "Email"}
+              {p.emailStatus === "ok" && <span style={{ fontSize: 11, fontWeight: 700 }}>✓</span>}
+            </button>
+            <button onClick={cycleEmailStatus} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 10.5, padding: "0 2px", fontFamily: "inherit", textAlign: "left", color: p.emailStatus === "ok" ? "var(--good)" : p.emailStatus === "bad" ? "var(--bad)" : "var(--ink-4)" }}>
+              {p.emailStatus === "ok" ? "✓ Verificado" : p.emailStatus === "bad" ? "⚠ Marcar OK" : "· Marcar como verificado"}
             </button>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <button className="btn" onClick={() => window.location.href = "tel:" + p.phone}><Icon name="phone" /></button>
-            <button title={lang === "es" ? "Estado del teléfono" : "Phone status"}
-              onClick={() => {
-                const cycle = { "": "ok", "ok": "bad", "bad": "" };
-                onUpdatePerson && onUpdatePerson(p.id, { phoneStatus: cycle[p.phoneStatus || ""] });
-              }}
-              style={{ padding: "4px 7px", borderRadius: 6, border: "1.5px solid", fontSize: 11, fontWeight: 700, cursor: "pointer", background: "transparent",
-                borderColor: p.phoneStatus === "ok" ? "var(--good)" : p.phoneStatus === "bad" ? "var(--bad)" : "var(--line)",
-                color: p.phoneStatus === "ok" ? "var(--good)" : p.phoneStatus === "bad" ? "var(--bad)" : "var(--ink-4)" }}>
-              {p.phoneStatus === "ok" ? "✓" : p.phoneStatus === "bad" ? "✕" : "?"}
+          {/* Phone */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button className="btn"
+                style={p.phoneStatus === "bad" ? { color: "var(--bad)", borderColor: "#fecaca", background: "#fff5f5" } : p.phoneStatus === "ok" ? { color: "var(--good)", borderColor: "#bbf7d0", background: "#f0fdf4" } : {}}
+                onClick={() => p.phone && (window.location.href = "tel:" + p.phone)}>
+                <Icon name="phone" />
+                {p.phoneStatus === "bad" ? (lang === "es" ? "No funciona" : "Not working") : (lang === "es" ? "Llamar" : "Call")}
+                {p.phoneStatus === "ok" && <span style={{ fontSize: 11, fontWeight: 700 }}>✓</span>}
+              </button>
+              {p.phone && (
+                <button className="btn" title="WhatsApp"
+                  style={{ padding: "0 10px", color: "#25D366", borderColor: "#25D36640", background: "#f0fdf4" }}
+                  onClick={() => window.open("https://wa.me/" + p.phone.replace(/\D/g, ""), "_blank")}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </button>
+              )}
+            </div>
+            <button onClick={cyclePhoneStatus} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 10.5, padding: "0 2px", fontFamily: "inherit", textAlign: "left", color: p.phoneStatus === "ok" ? "var(--good)" : p.phoneStatus === "bad" ? "var(--bad)" : "var(--ink-4)" }}>
+              {p.phoneStatus === "ok" ? "✓ Verificado" : p.phoneStatus === "bad" ? "⚠ Marcar OK" : "· Marcar como verificado"}
             </button>
           </div>
           <button className="btn" style={{ color: "var(--good)", borderColor: "var(--good)" }}
@@ -238,6 +334,21 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
           </button>
         </div>
       </div>
+
+      {/* Smart alerts strip */}
+      {personAlerts.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+          {personAlerts.map(al => {
+            const c = alertColors[al.level];
+            return (
+              <div key={al.key} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, fontSize: 12, fontWeight: 600, background: c.bg, border: "1px solid " + c.border, color: c.text }}>
+                <Icon name={al.icon} size={12} />
+                {al.msg}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
