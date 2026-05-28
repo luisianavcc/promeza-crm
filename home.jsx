@@ -121,33 +121,67 @@ const Home = ({ t, lang, data, go }) => {
         ))}
       </div>
 
-      {/* Row 2: Pipeline + Activity */}
+      {/* Row 2: Contact status + Activity */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: 16, marginBottom: 16 }}>
-        {/* Pipeline funnel */}
+        {/* Contact status breakdown */}
         <div className="card">
           <div className="card-head">
-            <div className="card-title">Pipeline de seguimiento</div>
-            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "pipeline" })}>Ver tablero →</button>
+            <div className="card-title">Estado de contactos</div>
+            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "personas" })}>Ver lista →</button>
           </div>
-          <div className="card-pad">
-            {stages.map(s => {
-              const count = stageCounts[s.id] || 0;
-              const pct = activePersonas > 0 ? Math.round(count / activePersonas * 100) : 0;
-              return (
-                <div key={s.id} style={{ marginBottom: 14, cursor: "pointer" }} onClick={() => go({ name: "pipeline" })}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: s.color }}>{s.label}</span>
-                    <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                      <strong style={{ color: "var(--ink-2)" }}>{count.toLocaleString()}</strong>
-                      <span style={{ color: "var(--ink-4)", fontWeight: 400 }}> ({pct}%)</span>
-                    </span>
-                  </div>
-                  <div style={{ height: 7, background: "var(--bg-soft)", borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: (count / maxStage * 100) + "%", background: s.color, borderRadius: 4, transition: "width .5s ease" }} />
-                  </div>
+          <div style={{ padding: "16px" }}>
+            {[
+              {
+                label: "Activos",
+                sub: "Con seguimiento vigente",
+                value: activePersonas,
+                color: "var(--good)",
+                bg: "#f0fdf4",
+                icon: "users",
+                route: "personas",
+              },
+              {
+                label: "Comprometidos",
+                sub: "Aliados confirmados",
+                value: stageCounts["aliado"] || 0,
+                color: "#10b981",
+                bg: "#ecfdf5",
+                icon: "star",
+                route: "pipeline",
+              },
+              {
+                label: "Sin contacto reciente",
+                sub: "Más de 90 días sin actividad",
+                value: staleCount,
+                color: staleCount > 0 ? "#f59e0b" : "var(--good)",
+                bg: staleCount > 0 ? "#fffbeb" : "#f0fdf4",
+                icon: "clock",
+                route: "personas",
+              },
+              {
+                label: "Inhabilitados",
+                sub: "Archivados o inactivos",
+                value: stageCounts["inactivo"] || personas.filter(p => stageOf(p) === "inactivo").length,
+                color: "var(--ink-4)",
+                bg: "var(--bg-soft)",
+                icon: "shield",
+                route: "personas",
+              },
+            ].map(row => (
+              <div key={row.label} onClick={() => go({ name: row.route })}
+                style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 13px", borderRadius: 10, background: row.bg, marginBottom: 8, cursor: "pointer", border: "1px solid transparent", transition: "border-color .15s" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = row.color + "40"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = "transparent"}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: row.color + "18", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <Icon name={row.icon} size={17} style={{ color: row.color }} />
                 </div>
-              );
-            })}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "var(--ink-2)" }}>{row.label}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 1 }}>{row.sub}</div>
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: row.color, minWidth: 36, textAlign: "right" }}>{row.value.toLocaleString()}</div>
+              </div>
+            ))}
           </div>
         </div>
 
