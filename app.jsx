@@ -649,6 +649,10 @@ const App = () => {
       tasks={data.tasks} users={window.PROMEZA_USERS || []} currentUser={userEmail}
       onAddTask={addTask} onToggleTask={toggleTask} onDeleteTask={deleteTask}
     />; break;
+    case "my-tasks": view = <MyTasksView t={t} lang={lang} data={data} go={go}
+      tasks={data.tasks} onToggleTask={toggleTask} onDeleteTask={deleteTask}
+      currentUser={userEmail} users={window.PROMEZA_USERS || []}
+    />; break;
     case "entity": view = <EntityProfile id={route.id} t={t} lang={lang} data={data} go={go} addComment={addComment} onUpdateEntity={handleUpdateEntity} onUpdatePerson={handleUpdatePerson} onEditEntity={handleEditEntity} onDeleteEntity={handleDeleteEntity} changelog={data.changelog[route.id] || []} attachments={data.attachments[route.id] || []} onAddAttachment={(att) => addAttachment(route.id, att)} onDeleteAttachment={(attId) => deleteAttachment(route.id, attId)} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
     case "duplicates": view = <DuplicatesPage pairs={dupPairs} data={data} onMerge={handleMergePersonas} onMergeWithData={handleMergeWithData} onDismiss={handleDismissDup} onUndismiss={handleUndismissDup} onScanAll={handleScanAll} onCreateDemo={handleCreateDemo} t={t} lang={lang} />; break;

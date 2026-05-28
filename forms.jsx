@@ -43,6 +43,7 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
     nextAction: initialData.nextAction || "",
     birthday: initialData.birthday || "",
     lastContact: initialData.lastContact || "",
+    extraAddresses: initialData.extraAddresses || [],
   } : {
     first: "", last: "", role: "miembro", roleOther: "",
     email: "", phone: "",
@@ -53,9 +54,14 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
     tags: "", language: "es", status: "activo",
     stage: "nuevo", source: "", nextAction: "",
     birthday: "", lastContact: "",
+    extraAddresses: [],
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setSoc = (k, v) => setForm(f => ({ ...f, social: { ...f.social, [k]: v } }));
+
+  const addAddress = () => set("extraAddresses", [...(form.extraAddresses || []), { id: "addr" + Date.now(), label: "", address: "", city: "", state: "", country: "", zip: "" }]);
+  const removeAddress = (idx) => set("extraAddresses", form.extraAddresses.filter((_, i) => i !== idx));
+  const updateAddress = (idx, k, v) => set("extraAddresses", form.extraAddresses.map((a, i) => i === idx ? { ...a, [k]: v } : a));
 
   const roleOpts = Object.keys(t.roles).map(k => ({ value: k, label: t.roles[k] }));
   const langOpts = [{ value: "es", label: "Español" }, { value: "en", label: "English" }];
@@ -64,6 +70,14 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
   const addEntityLink = () => set("entities", [...form.entities, { id: data.entities[0]?.id || "", role: "miembro", roleOther: "", comment: "" }]);
   const removeEntityLink = (idx) => set("entities", form.entities.filter((_, i) => i !== idx));
   const updateEntityLink = (idx, k, v) => set("entities", form.entities.map((e, i) => i === idx ? { ...e, [k]: v } : e));
+
+  const addrLabels = [
+    lang === "es" ? "Domicilio" : "Home",
+    lang === "es" ? "Iglesia" : "Church",
+    lang === "es" ? "Trabajo" : "Work",
+    lang === "es" ? "Ministerio" : "Ministry",
+    lang === "es" ? "Otro" : "Other",
+  ];
 
   return (
     <div className="modal-veil" onClick={onClose}>
@@ -90,13 +104,51 @@ const NewPersonForm = ({ t, lang, data, onClose, onSave, initialData, editMode, 
             <TextField label={lang === "es" ? "Teléfono" : "Phone"} value={form.phone} onChange={v => set("phone", v)} placeholder="+1 305 555 0000" />
           </div>
 
-          <h4 style={{ margin: "18px 0 8px", fontSize: 12, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{t.forms.addressBlock}</h4>
+          {/* Primary address */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "18px 0 8px" }}>
+            <h4 style={{ margin: 0, fontSize: 12, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>
+              {lang === "es" ? "Dirección principal" : "Primary address"}
+            </h4>
+          </div>
           <div className="form-grid">
             <TextField full label={lang === "es" ? "Dirección completa" : "Full address"} value={form.address} onChange={v => set("address", v)} placeholder="Calle, número, depto." />
             <TextField label="ZIP" value={form.zip} onChange={v => set("zip", v)} />
             <TextField label={lang === "es" ? "Ciudad" : "City"} value={form.city} onChange={v => set("city", v)} />
             <TextField label={lang === "es" ? "Estado / Provincia" : "State / Province"} value={form.state} onChange={v => set("state", v)} />
             <TextField label={lang === "es" ? "País" : "Country"} value={form.country} onChange={v => set("country", v)} />
+          </div>
+
+          {/* Extra addresses */}
+          {(form.extraAddresses || []).map((addr, idx) => (
+            <div key={addr.id || idx} className="entity-block" style={{ marginTop: 10 }}>
+              <div className="head">
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Icon name="pin" size={14} />
+                  <select
+                    value={addr.label}
+                    onChange={e => updateAddress(idx, "label", e.target.value)}
+                    style={{ border: "none", background: "transparent", fontFamily: "inherit", fontSize: 13, fontWeight: 600, color: "var(--ink)", cursor: "pointer" }}>
+                    <option value="">{lang === "es" ? "Tipo de dirección…" : "Address type…"}</option>
+                    {addrLabels.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+                <button className="btn btn-sm btn-ghost" onClick={() => removeAddress(idx)} style={{ color: "var(--bad)" }}>
+                  <Icon name="x" size={13} /> {lang === "es" ? "Quitar" : "Remove"}
+                </button>
+              </div>
+              <div className="form-grid">
+                <TextField full label={lang === "es" ? "Dirección" : "Address"} value={addr.address} onChange={v => updateAddress(idx, "address", v)} placeholder="Calle, número…" />
+                <TextField label="ZIP" value={addr.zip} onChange={v => updateAddress(idx, "zip", v)} />
+                <TextField label={lang === "es" ? "Ciudad" : "City"} value={addr.city} onChange={v => updateAddress(idx, "city", v)} />
+                <TextField label={lang === "es" ? "Estado" : "State"} value={addr.state} onChange={v => updateAddress(idx, "state", v)} />
+                <TextField label={lang === "es" ? "País" : "Country"} value={addr.country} onChange={v => updateAddress(idx, "country", v)} />
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: 8 }}>
+            <button className="btn btn-sm btn-ghost" onClick={addAddress}>
+              <Icon name="plus" /> {lang === "es" ? "Agregar otra dirección" : "Add another address"}
+            </button>
           </div>
 
           <h4 style={{ margin: "18px 0 8px", fontSize: 12, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>

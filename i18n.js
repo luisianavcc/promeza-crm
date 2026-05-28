@@ -5,7 +5,7 @@ window.PROMEZA_I18N = {
     appTag: "Base de datos relacional",
     nav: {
       home: "Inicio", personas: "Personas", entities: "Entidades",
-      map: "Mapa", search: "Buscar",
+      map: "Mapa", search: "Buscar", tasks: "Tareas", myTasks: "Mis tareas",
       newPerson: "Nueva persona", newEntity: "Nueva entidad",
     },
     common: {
@@ -140,7 +140,7 @@ window.PROMEZA_I18N = {
     appTag: "Relational database",
     nav: {
       home: "Home", personas: "People", entities: "Entities",
-      map: "Map", search: "Search",
+      map: "Map", search: "Search", tasks: "Tasks", myTasks: "My tasks",
       newPerson: "New person", newEntity: "New entity",
     },
     common: {

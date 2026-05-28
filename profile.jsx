@@ -243,6 +243,26 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
               </div>
             </div>
 
+            {(p.extraAddresses || []).length > 0 && (
+              <div className="section">
+                <h3>{lang === "es" ? "Direcciones adicionales" : "Additional addresses"} <span className="muted mono" style={{ fontSize: 11 }}>{p.extraAddresses.length}</span></h3>
+                <div className="section-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {p.extraAddresses.map((addr, i) => (
+                    <div key={addr.id || i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <div style={{ paddingTop: 2, color: "var(--accent)" }}><Icon name="pin" size={14} /></div>
+                      <div>
+                        {addr.label && <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 2, color: "var(--ink-2)" }}>{addr.label}</div>}
+                        <div style={{ fontSize: 13, color: "var(--ink)" }}>{addr.address}</div>
+                        <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                          {[addr.city, addr.state, addr.zip, addr.country].filter(Boolean).join(", ")}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="section">
               <h3>{lang === "es" ? "Datos adicionales" : "Additional data"}</h3>
               <div className="section-body">

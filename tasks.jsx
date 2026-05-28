@@ -4,6 +4,8 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
   const [filterAssignee, setFilterAssignee] = React.useState("all");
   const [filterStatus, setFilterStatus] = React.useState("pending");
   const [filterPersona, setFilterPersona] = React.useState("all");
+  const [filterState, setFilterState] = React.useState("");
+  const [filterZip, setFilterZip] = React.useState("");
   const [showForm, setShowForm] = React.useState(false);
   const [form, setForm] = React.useState({ personaId: "", text: "", due: "", assignedTo: currentUser || "" });
 
@@ -28,6 +30,21 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
     if (filterStatus === "overdue" && !isOverdue(task)) return false;
     if (filterAssignee !== "all" && task.assignedTo !== filterAssignee) return false;
     if (filterPersona !== "all" && task.personaId !== filterPersona) return false;
+    if (filterState || filterZip) {
+      const persona = data.personas.find(p => p.id === task.personaId);
+      if (!persona) return false;
+      const allAddrs = [
+        { state: persona.state, zip: persona.zip },
+        ...((persona.extraAddresses || []).map(a => ({ state: a.state, zip: a.zip }))),
+      ];
+      if (filterState) {
+        const s = filterState.toLowerCase();
+        if (!allAddrs.some(a => (a.state || "").toLowerCase().includes(s))) return false;
+      }
+      if (filterZip) {
+        if (!allAddrs.some(a => (a.zip || "").toLowerCase().includes(filterZip.toLowerCase()))) return false;
+      }
+    }
     return true;
   }).sort((a, b) => {
     if (!a.done && b.done) return -1;
@@ -181,6 +198,25 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
             {personasWithTasks.map(p => <option key={p.id} value={p.id}>{p.first} {p.last}</option>)}
           </select>
         )}
+
+        {/* State / ZIP filters */}
+        <input
+          value={filterState}
+          onChange={e => setFilterState(e.target.value)}
+          placeholder={lang === "es" ? "Estado / Provincia…" : "State / Province…"}
+          style={{ fontSize: 12.5, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--bg)", color: "var(--ink-1)", fontFamily: "inherit", width: 150 }}
+        />
+        <input
+          value={filterZip}
+          onChange={e => setFilterZip(e.target.value)}
+          placeholder="ZIP…"
+          style={{ fontSize: 12.5, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--bg)", color: "var(--ink-1)", fontFamily: "inherit", width: 90 }}
+        />
+        {(filterState || filterZip) && (
+          <button className="btn btn-sm btn-ghost" onClick={() => { setFilterState(""); setFilterZip(""); }}>
+            <Icon name="x" size={12} />
+          </button>
+        )}
       </div>
 
       {/* Task list */}
@@ -258,3 +294,138 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
 };
 
 window.GlobalTasksView = GlobalTasksView;
+
+// ─── My Tasks — personal dashboard ───
+
+const MyTasksView = ({ t, lang, data, go, tasks, onToggleTask, onDeleteTask, currentUser, users }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  const in7 = new Date(); in7.setDate(in7.getDate() + 7);
+  const in7str = in7.toISOString().slice(0, 10);
+
+  const myTasks = React.useMemo(() => {
+    const out = [];
+    for (const [personaId, tlist] of Object.entries(tasks || {})) {
+      for (const task of (tlist || [])) {
+        if (task.assignedTo === currentUser) out.push({ ...task, personaId });
+      }
+    }
+    return out;
+  }, [tasks, currentUser]);
+
+  const personaName = (id) => {
+    const p = data.personas.find(x => x.id === id);
+    return p ? p.first + " " + p.last : "?";
+  };
+
+  const groups = [
+    { id: "overdue", label: lang === "es" ? "Vencidas" : "Overdue", color: "var(--bad)", tasks: myTasks.filter(t => !t.done && t.due && t.due < today) },
+    { id: "today", label: lang === "es" ? "Hoy" : "Today", color: "#f59e0b", tasks: myTasks.filter(t => !t.done && t.due === today) },
+    { id: "week", label: lang === "es" ? "Esta semana" : "This week", color: "var(--accent)", tasks: myTasks.filter(t => !t.done && t.due && t.due > today && t.due <= in7str) },
+    { id: "later", label: lang === "es" ? "Más adelante" : "Later", color: "var(--ink-3)", tasks: myTasks.filter(t => !t.done && (!t.due || t.due > in7str)) },
+    { id: "done", label: lang === "es" ? "Completadas" : "Done", color: "var(--good)", tasks: myTasks.filter(t => t.done) },
+  ];
+
+  const pending = myTasks.filter(t => !t.done).length;
+  const overdue = myTasks.filter(t => !t.done && t.due && t.due < today).length;
+
+  const userLabel = (email) => {
+    const u = (users || []).find(x => x.email === email);
+    return u ? u.name : (email || "").split("@")[0];
+  };
+
+  return (
+    <div style={{ maxWidth: 680, margin: "0 auto" }}>
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">{lang === "es" ? "Mis tareas" : "My tasks"}</h1>
+          <div className="page-sub">
+            {userLabel(currentUser)} · {pending} {lang === "es" ? "pendientes" : "pending"}
+            {overdue > 0 && <span style={{ color: "var(--bad)", fontWeight: 600, marginLeft: 8 }}>· {overdue} {lang === "es" ? "vencidas" : "overdue"}</span>}
+          </div>
+        </div>
+      </div>
+
+      {myTasks.length === 0 && (
+        <div className="empty" style={{ padding: "60px 0" }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+          <div style={{ fontWeight: 600 }}>{lang === "es" ? "Sin tareas asignadas" : "No tasks assigned to you"}</div>
+          <div style={{ fontSize: 12, marginTop: 4 }}>{lang === "es" ? "Las tareas que te asignen aparecerán aquí" : "Tasks assigned to you will appear here"}</div>
+        </div>
+      )}
+
+      {groups.map(group => group.tasks.length === 0 ? null : (
+        <div key={group.id} style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: group.color, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: group.color, textTransform: "uppercase", letterSpacing: ".06em" }}>
+              {group.label}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: group.color, background: group.color + "18", borderRadius: 10, padding: "1px 7px" }}>
+              {group.tasks.length}
+            </span>
+          </div>
+
+          <div className="section">
+            <div className="section-body" style={{ padding: 0 }}>
+              {group.tasks.map(task => {
+                const isOverdue = task.due && !task.done && task.due < today;
+                const persona = data.personas.find(p => p.id === task.personaId);
+                return (
+                  <div key={task.id} style={{
+                    display: "flex", alignItems: "flex-start", gap: 12,
+                    padding: "13px 16px", borderBottom: "1px solid var(--line)",
+                    opacity: task.done ? 0.5 : 1,
+                    background: isOverdue ? "rgba(220,38,38,.03)" : "transparent",
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={!!task.done}
+                      onChange={() => onToggleTask(task.personaId, task.id)}
+                      style={{ marginTop: 3, cursor: "pointer", width: 16, height: 16, flexShrink: 0, accentColor: "var(--accent)" }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: 14, fontWeight: 500,
+                        textDecoration: task.done ? "line-through" : "none",
+                        color: isOverdue ? "var(--bad)" : "var(--ink)",
+                        marginBottom: 4,
+                      }}>
+                        {task.text}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        {persona && (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ height: "auto", padding: "1px 7px", fontSize: 11.5, color: "var(--accent)", fontWeight: 600 }}
+                            onClick={() => go({ name: "person", id: task.personaId })}>
+                            <Icon name="users" size={11} /> {persona.first} {persona.last}
+                            {persona.city && <span style={{ color: "var(--ink-3)", fontWeight: 400 }}> · {persona.city}</span>}
+                          </button>
+                        )}
+                        {task.due && (
+                          <span style={{ fontSize: 11.5, color: isOverdue ? "var(--bad)" : "var(--ink-3)", fontWeight: isOverdue ? 600 : 400, display: "flex", alignItems: "center", gap: 4 }}>
+                            <Icon name="calendar" size={11} /> {fmtDate(task.due, lang)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-sm btn-ghost"
+                      style={{ color: "var(--ink-4)", flexShrink: 0 }}
+                      onClick={() => onDeleteTask(task.personaId, task.id)}>
+                      <Icon name="trash" size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+window.MyTasksView = MyTasksView;
