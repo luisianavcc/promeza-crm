@@ -107,7 +107,12 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
     .filter(pr => pr.dateStart && pr.dateStart >= today && pr.dateStart <= in7str && pr.status !== "cancelado")
     .sort((a, b) => a.dateStart.localeCompare(b.dateStart));
 
-  const total = birthdayAlerts.length + overdueItems.length + upcomingProjects.length;
+  // Bad contact info
+  const badInfoPersonas = window.hasContactIssue
+    ? data.personas.filter(p => window.hasContactIssue(p)).slice(0, 6)
+    : [];
+
+  const total = birthdayAlerts.length + overdueItems.length + upcomingProjects.length + (badInfoPersonas.length > 0 ? 1 : 0);
 
   return (
     <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 360, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "var(--shadow-lg)", zIndex: 500, overflow: "hidden" }}>
@@ -159,6 +164,41 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
                 <span style={{ fontSize: 18 }}>{diff === 0 ? "🎂" : "🎉"}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {badInfoPersonas.length > 0 && (
+          <div>
+            <div style={{ padding: "8px 16px 4px", fontSize: 10.5, fontWeight: 700, color: "#f59e0b", textTransform: "uppercase", letterSpacing: ".06em" }}>
+              Información por corregir · {data.personas.filter(p => window.hasContactIssue && window.hasContactIssue(p)).length} personas
+            </div>
+            {badInfoPersonas.map(p => {
+              const email = (p.email || "").trim();
+              const phone = (p.phone || "").replace(/\D/g, "");
+              const issues = [];
+              if (!email && phone.length < 7) issues.push("Sin email ni teléfono");
+              else {
+                if (email && !email.includes("@")) issues.push("Email con formato incorrecto");
+                if (p.emailStatus === "bad") issues.push("Email no funciona");
+                if (p.phoneStatus === "bad") issues.push("Teléfono no funciona");
+              }
+              return (
+                <div key={p.id} style={{ padding: "9px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+                  onClick={() => { go({ name: "person", id: p.id }); onClose(); }}>
+                  <div className="av-circle" style={{ background: p.color, width: 30, height: 30, fontSize: 10, flexShrink: 0 }}>{initials(fullName(p))}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 12.5 }}>{fullName(p)}</div>
+                    <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 500 }}>{issues.join(" · ")}</div>
+                  </div>
+                  <Icon name="alert" size={13} style={{ color: "#f59e0b", flexShrink: 0 }} />
+                </div>
+              );
+            })}
+            {data.personas.filter(p => window.hasContactIssue && window.hasContactIssue(p)).length > 6 && (
+              <div style={{ padding: "7px 16px", fontSize: 11.5, color: "var(--ink-3)", textAlign: "center" }}>
+                +{data.personas.filter(p => window.hasContactIssue && window.hasContactIssue(p)).length - 6} más
+              </div>
+            )}
           </div>
         )}
 
@@ -232,6 +272,8 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
     }).length;
     // overdue tasks
     n += Object.values(data.tasks || {}).flat().filter(tk => !tk.done && tk.due && tk.due < today).length;
+    // bad contact info (count as 1 group so it doesn't inflate the badge)
+    if (window.hasContactIssue && data.personas.some(p => window.hasContactIssue(p))) n += 1;
     return Math.min(99, n);
   }, [data, today]);
 

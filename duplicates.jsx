@@ -37,6 +37,48 @@ const findDuplicatePairs = (personas, existingPairs = []) => {
   return pairs.sort((a, b) => b.score - a.score);
 };
 
+// Entity duplicate detection
+const findEntityDuplicatePairs = (entities, existingPairs = []) => {
+  const dismissed = new Set(existingPairs.filter(p => p.dismissed).map(p => p.idA + "|" + p.idB));
+  const pairs = [];
+  const seen = new Set();
+  for (let i = 0; i < entities.length; i++) {
+    for (let j = i + 1; j < entities.length; j++) {
+      const a = entities[i], b = entities[j];
+      const key = [a.id, b.id].sort().join("|");
+      if (seen.has(key) || dismissed.has(key)) continue;
+      seen.add(key);
+      const aName = _norm(a.name);
+      const bName = _norm(b.name);
+      const aEmail = _norm(a.email);
+      const bEmail = _norm(b.email);
+      const aPhone = _phone(a.phone);
+      const bPhone = _phone(b.phone);
+      let score = 0;
+      if (aName && bName && aName === bName) score += 3;
+      if (aEmail && bEmail && aEmail === bEmail) score += 2;
+      if (aPhone.length >= 7 && bPhone.length >= 7 && aPhone === bPhone) score += 2;
+      if (score >= 2) pairs.push({ idA: a.id, idB: b.id, score, dismissed: false, kind: "entity" });
+    }
+  }
+  return pairs.sort((a, b) => b.score - a.score);
+};
+
+window.findEntityDuplicatePairs = findEntityDuplicatePairs;
+
+// Check if persona has contact info issues
+const hasContactIssue = (p) => {
+  const email = (p.email || "").trim();
+  const phone = (p.phone || "").replace(/\D/g, "");
+  if (!email && phone.length < 7) return true;   // no way to contact
+  if (email && !email.includes("@")) return true; // bad email format
+  if (p.emailStatus === "bad") return true;        // marked not working
+  if (p.phoneStatus === "bad") return true;        // marked not working
+  return false;
+};
+
+window.hasContactIssue = hasContactIssue;
+
 // ─── Side-by-side field row ───
 
 const DupField = ({ label, a, b }) => {

@@ -235,6 +235,7 @@ const App = () => {
   const [editingId, setEditingId] = useState(null);
   const [modalPrefill, setModalPrefill] = useState(null);
   const [dupPairs, setDupPairs] = useState([]);
+  const [entityDupPairs, setEntityDupPairs] = useState([]);
 
   const [data, setData] = useState(() => {
     try {
@@ -273,6 +274,41 @@ const App = () => {
     localStorage.setItem("promeza_data", JSON.stringify(data));
   }, [data]);
 
+  // Auto-scan for duplicates on load + auto-generate tasks for new pairs
+  useEffect(() => {
+    const personaPairs = findDuplicatePairs(data.personas, []);
+    if (personaPairs.length > 0) {
+      setDupPairs(personaPairs);
+      // Auto-create a task on each persona in the pair if not already there
+      setData(d => {
+        let tasks = { ...d.tasks };
+        personaPairs.forEach(pair => {
+          const pA = d.personas.find(p => p.id === pair.idA);
+          const pB = d.personas.find(p => p.id === pair.idB);
+          if (!pA || !pB) return;
+          const nameB = pB.first + " " + pB.last;
+          const nameA = pA.first + " " + pA.last;
+          const textA = "Revisar posible duplicado con: " + nameB;
+          const textB = "Revisar posible duplicado con: " + nameA;
+          const listA = tasks[pair.idA] || [];
+          const listB = tasks[pair.idB] || [];
+          if (!listA.some(t => t.text === textA)) {
+            tasks[pair.idA] = [...listA, { id: "dup_" + pair.idA + "_" + pair.idB, text: textA, due: null, done: false, createdAt: new Date().toISOString().slice(0, 10), type: "duplicate" }];
+          }
+          if (!listB.some(t => t.text === textB)) {
+            tasks[pair.idB] = [...listB, { id: "dup_" + pair.idB + "_" + pair.idA, text: textB, due: null, done: false, createdAt: new Date().toISOString().slice(0, 10), type: "duplicate" }];
+          }
+        });
+        return { ...d, tasks };
+      });
+    }
+    // Entity duplicates
+    if (window.findEntityDuplicatePairs) {
+      const entPairs = window.findEntityDuplicatePairs(data.entities, []);
+      if (entPairs.length > 0) setEntityDupPairs(entPairs);
+    }
+  }, []); // run once on mount
+
   const go = (r) => {
     if (r.name === "new-person") { setModalPrefill(r.prefill || null); setModal("new-person"); return; }
     if (r.name === "new-entity") { setModalPrefill(r.prefill || null); setModal("new-entity"); return; }
@@ -289,7 +325,8 @@ const App = () => {
     const metric = GOAL_METRICS.find(m => m.id === g.metric);
     return metric && metric.compute(data) >= g.target;
   }).length;
-  const counts = { personas: data.personas.length, entities: data.entities.length, dups: dupPairs.filter(p => !p.dismissed).length, pendingTasks: pendingTasks || null, overdueCount, projects: (data.projects || []).length || null, completedGoals: completedGoals || null };
+  const totalDups = dupPairs.filter(p => !p.dismissed).length + entityDupPairs.filter(p => !p.dismissed).length;
+  const counts = { personas: data.personas.length, entities: data.entities.length, dups: totalDups, pendingTasks: pendingTasks || null, overdueCount, projects: (data.projects || []).length || null, completedGoals: completedGoals || null };
 
   const addComment = (targetId, text) => {
     setData(d => {
@@ -507,7 +544,10 @@ const App = () => {
   };
 
   const addGoal = (goal) => {
-    setData(d => ({ ...d, goals: [{ id: "goal" + Date.now(), ...goal, createdAt: new Date().toISOString(), archived: false }, ...(d.goals || [])] }));
+    const GOAL_METRICS = window.GOAL_METRICS || [];
+    const metric = GOAL_METRICS.find(m => m.id === goal.metric);
+    const initialValue = metric ? metric.compute(data) : 0;
+    setData(d => ({ ...d, goals: [{ id: "goal" + Date.now(), ...goal, initialValue, createdAt: new Date().toISOString(), archived: false }, ...(d.goals || [])] }));
   };
 
   const updateGoal = (id, updates) => {

@@ -15,6 +15,7 @@ const Home = ({ t, lang, data, go }) => {
   const comprometidos = personas.filter(p => stageOf(p) === "aliado").length;
   const inhabilitados = personas.filter(p => stageOf(p) === "inactivo").length;
   const enProyectos = new Set(projects.flatMap(pr => (pr.members || []).map(m => m.personaId))).size;
+  const porRevisar = personas.filter(p => window.hasContactIssue ? window.hasContactIssue(p) : false).length;
 
   // Activity last 14 days
   const last14 = Array.from({ length: 14 }, (_, i) => {
@@ -129,15 +130,14 @@ const Home = ({ t, lang, data, go }) => {
           </div>
           <div style={{ padding: "8px 12px 12px" }}>
             {[
-              { label: "Activos", sub: "Con seguimiento vigente", value: activePersonas, color: "var(--good)", icon: "users" },
-              { label: "Comprometidos", sub: "Aliados confirmados", value: comprometidos, color: "#10b981", icon: "star" },
-              { label: "Participando en proyectos", sub: "Asignados a algún proyecto", value: enProyectos, color: "#8b5cf6", icon: "folder" },
-              { label: "Inhabilitados", sub: "Archivados", value: inhabilitados, color: "var(--ink-4)", icon: "shield" },
+              { label: "Activos", sub: "Con seguimiento vigente", value: activePersonas, color: "var(--good)", icon: "users", route: "personas" },
+              { label: "Inhabilitados", sub: "Archivados o inactivos", value: inhabilitados, color: "var(--ink-4)", icon: "shield", route: "personas" },
+              { label: "Por revisar", sub: "Información de contacto con problemas", value: porRevisar, color: porRevisar > 0 ? "#f59e0b" : "var(--good)", icon: "alert", route: "personas" },
             ].map((row, i) => (
               <div key={row.label}
                 className="status-row-card"
                 style={{ animationDelay: (i * 60) + "ms" }}
-                onClick={() => go({ name: row.label === "Participando en proyectos" ? "projects" : "personas" })}>
+                onClick={() => go({ name: row.route || "personas" })}>
                 <div style={{ width: 36, height: 36, borderRadius: 9, background: row.color + "15", display: "grid", placeItems: "center", flexShrink: 0 }}>
                   <Icon name={row.icon} size={16} />
                 </div>
