@@ -264,7 +264,22 @@ window.PROMEZA_DATA = (function () {
     e9: [{ author: "Andrea Lozano", date: "2026-04-20", text: "Iglesia con fuerte alcance regional, candidata para piloto del módulo de discipulado." }],
   };
 
-  return { entities, personas, comments };
+  // Demo tasks with due dates (appear in calendar + tasks view)
+  const tasks = {
+    p1:  [{ id: "dt1",  text: "Llamada de seguimiento trimestral",     due: "2026-06-05", done: false, createdAt: "2026-05-20" },
+          { id: "dt2",  text: "Enviar material de conferencia",         due: "2026-06-12", done: false, createdAt: "2026-05-20" }],
+    p8:  [{ id: "dt3",  text: "Reunión de planificación anual",         due: "2026-06-10", done: false, createdAt: "2026-05-20" }],
+    p10: [{ id: "dt4",  text: "Coordinar entrevista para podcast",      due: "2026-06-03", done: false, createdAt: "2026-05-20" }],
+    p19: [{ id: "dt5",  text: "Presentación de demo del CRM",           due: "2026-06-07", done: false, createdAt: "2026-05-20" }],
+    p22: [{ id: "dt6",  text: "Visita pastoral — Santo Domingo",        due: "2026-06-15", done: false, createdAt: "2026-05-20" }],
+    p25: [{ id: "dt7",  text: "Seguimiento propuesta de alianza",       due: "2026-06-20", done: false, createdAt: "2026-05-20" }],
+    p29: [{ id: "dt8",  text: "Confirmar participación en congreso",    due: "2026-06-08", done: false, createdAt: "2026-05-20" }],
+    p41: [{ id: "dt9",  text: "Reunión con líderes de condado Ventura", due: "2026-06-18", done: false, createdAt: "2026-05-20" }],
+    p17: [{ id: "dt10", text: "Revisar mezcla final del álbum",         due: "2026-05-30", done: false, createdAt: "2026-05-20" }],
+    p32: [{ id: "dt11", text: "Enviar propuesta de colaboración",       due: "2026-06-02", done: false, createdAt: "2026-05-20" }],
+  };
+
+  return { entities, personas, comments, tasks };
 })();
 
 // ─── Users (fixed list — edit here to add/remove accounts) ───

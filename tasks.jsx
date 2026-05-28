@@ -12,21 +12,27 @@ const BatchTaskModal = ({ t, lang, data, onAddTask, users, currentUser, onClose 
   const [bAssignee, setBAssignee] = React.useState(currentUser || "");
   const [done, setDone] = React.useState(false);
 
+  const es = lang === "es";
   const stages = window.PIPELINE_STAGES || [];
   const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
 
-  const matching = data.personas.filter(p => {
-    if (bRole !== "all" && p.role !== bRole) return false;
-    if (bStage !== "all" && stageOf(p) !== bStage) return false;
-    if (bCity && !(p.city || "").toLowerCase().includes(bCity.toLowerCase())) return false;
-    if (bState) {
-      const s = bState.toLowerCase();
-      const allStates = [p.state, ...((p.extraAddresses || []).map(a => a.state))];
-      if (!allStates.some(st => (st || "").toLowerCase().includes(s))) return false;
-    }
-    if (bTag && !(p.tags || []).some(tg => tg.toLowerCase().includes(bTag.toLowerCase()))) return false;
-    return true;
-  });
+  const hasFilter = bRole !== "all" || bStage !== "all" || bCity || bState || bTag;
+
+  const matching = React.useMemo(() => {
+    if (!hasFilter) return [];
+    return data.personas.filter(p => {
+      if (bRole !== "all" && p.role !== bRole) return false;
+      if (bStage !== "all" && stageOf(p) !== bStage) return false;
+      if (bCity && !(p.city || "").toLowerCase().includes(bCity.toLowerCase())) return false;
+      if (bState) {
+        const s = bState.toLowerCase();
+        const allStates = [p.state, ...((p.extraAddresses || []).map(a => a.state))];
+        if (!allStates.some(st => (st || "").toLowerCase().includes(s))) return false;
+      }
+      if (bTag && !(p.tags || []).some(tg => tg.toLowerCase().includes(bTag.toLowerCase()))) return false;
+      return true;
+    });
+  }, [bRole, bStage, bCity, bState, bTag, data.personas, hasFilter]);
 
   const assign = () => {
     if (!bText.trim() || matching.length === 0) return;
@@ -43,87 +49,121 @@ const BatchTaskModal = ({ t, lang, data, onAddTask, users, currentUser, onClose 
 
   return (
     <div className="modal-veil" onClick={onClose}>
-      <div className="modal" style={{ width: "min(560px,100%)" }} onClick={e => e.stopPropagation()}>
+      <div className="modal" style={{ width: "min(580px,100%)" }} onClick={e => e.stopPropagation()}>
         <div className="modal-head">
-          <div style={{ fontWeight: 600, fontSize: 15 }}>{lang === "es" ? "Asignación masiva de tareas" : "Batch task assignment"}</div>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>{es ? "Asignación masiva de tareas" : "Batch task assignment"}</div>
           <button className="icon-btn" onClick={onClose}><Icon name="x" /></button>
         </div>
         <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {done ? (
             <div style={{ textAlign: "center", padding: "32px 0" }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>{lang === "es" ? `Tarea asignada a ${matching.length} personas` : `Task assigned to ${matching.length} people`}</div>
-              <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={onClose}>{lang === "es" ? "Cerrar" : "Close"}</button>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{es ? `Tarea asignada a ${matching.length} personas` : `Task assigned to ${matching.length} people`}</div>
+              <button className="btn btn-primary" style={{ marginTop: 20 }} onClick={onClose}>{es ? "Cerrar" : "Close"}</button>
             </div>
           ) : (
             <>
-              <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-100)", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "var(--ink-2)" }}>
-                {lang === "es" ? "Filtra el grupo y la tarea se asignará a todos los resultados de golpe." : "Filter a group and the task will be assigned to all results at once."}
+              {/* Step 1 */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>
+                {es ? "Paso 1 — Filtra el grupo destinatario" : "Step 1 — Filter the target group"}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div className="field" style={{ margin: 0 }}>
-                  <label>{lang === "es" ? "Cargo" : "Role"}</label>
+                  <label>{es ? "Cargo" : "Role"}</label>
                   <select value={bRole} onChange={e => setBRole(e.target.value)}>
-                    <option value="all">{lang === "es" ? "Todos" : "All"}</option>
+                    <option value="all">{es ? "Todos los cargos" : "All roles"}</option>
                     {Object.keys(t.roles).map(k => <option key={k} value={k}>{t.roles[k]}</option>)}
                   </select>
                 </div>
                 <div className="field" style={{ margin: 0 }}>
-                  <label>{lang === "es" ? "Etapa" : "Stage"}</label>
+                  <label>{es ? "Etapa" : "Stage"}</label>
                   <select value={bStage} onChange={e => setBStage(e.target.value)}>
-                    <option value="all">{lang === "es" ? "Todas" : "All"}</option>
+                    <option value="all">{es ? "Todas las etapas" : "All stages"}</option>
                     {stages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                   </select>
                 </div>
                 <div className="field" style={{ margin: 0 }}>
-                  <label>{lang === "es" ? "Ciudad" : "City"}</label>
-                  <input value={bCity} onChange={e => setBCity(e.target.value)} placeholder="Miami…" />
+                  <label>{es ? "Ciudad" : "City"}</label>
+                  <input value={bCity} onChange={e => setBCity(e.target.value)} placeholder="Miami, Bogotá…" />
                 </div>
                 <div className="field" style={{ margin: 0 }}>
-                  <label>{lang === "es" ? "Estado / Prov." : "State / Prov."}</label>
-                  <input value={bState} onChange={e => setBState(e.target.value)} placeholder="FL…" />
+                  <label>{es ? "Estado / Provincia" : "State / Province"}</label>
+                  <input value={bState} onChange={e => setBState(e.target.value)} placeholder="FL, CA, CDMX…" />
                 </div>
                 <div className="field" style={{ margin: 0, gridColumn: "1 / -1" }}>
-                  <label>{lang === "es" ? "Etiqueta" : "Tag"}</label>
-                  <input value={bTag} onChange={e => setBTag(e.target.value)} placeholder="pastor, lider…" />
+                  <label>{es ? "Etiqueta" : "Tag"}</label>
+                  <input value={bTag} onChange={e => setBTag(e.target.value)} placeholder={es ? "vip, liderazgo, jóvenes…" : "vip, leadership, youth…"} />
                 </div>
               </div>
-              <div style={{
-                padding: "10px 14px", borderRadius: 8, textAlign: "center", fontWeight: 700, fontSize: 14,
-                background: matching.length === 0 ? "var(--bg-soft)" : "#f0fdf4",
-                color: matching.length === 0 ? "var(--ink-4)" : "#166534",
-                border: "1px solid " + (matching.length === 0 ? "var(--line)" : "#bbf7d0"),
-              }}>
-                {matching.length === 0
-                  ? (lang === "es" ? "Sin resultados para estos filtros" : "No results for these filters")
-                  : (lang === "es" ? `${matching.length} personas coinciden` : `${matching.length} people match`)}
-              </div>
-              <hr style={{ border: "none", borderTop: "1px solid var(--line)", margin: "0" }} />
-              <div className="field" style={{ margin: 0 }}>
-                <label>{lang === "es" ? "Descripción de la tarea" : "Task description"} *</label>
-                <input value={bText} onChange={e => setBText(e.target.value)} placeholder={lang === "es" ? "¿Qué hay que hacer?" : "What needs to be done?"} />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div className="field" style={{ margin: 0 }}>
-                  <label>{lang === "es" ? "Fecha límite" : "Due date"}</label>
-                  <input type="date" value={bDue} onChange={e => setBDue(e.target.value)} />
+
+              {/* Result preview */}
+              {!hasFilter ? (
+                <div style={{ padding: "12px 14px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", fontSize: 12.5, color: "var(--ink-3)", textAlign: "center" }}>
+                  {es ? "Aplica al menos un filtro para seleccionar el grupo" : "Apply at least one filter to select a group"}
                 </div>
-                <div className="field" style={{ margin: 0 }}>
-                  <label>{lang === "es" ? "Asignado a" : "Assigned to"}</label>
-                  <select value={bAssignee} onChange={e => setBAssignee(e.target.value)}>
-                    <option value="">{lang === "es" ? "Sin asignar" : "Unassigned"}</option>
-                    {(users || []).map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
-                  </select>
+              ) : matching.length === 0 ? (
+                <div style={{ padding: "12px 14px", borderRadius: 8, background: "var(--bg-soft)", border: "1px solid var(--line)", fontSize: 12.5, color: "var(--ink-4)", textAlign: "center" }}>
+                  {es ? "Sin resultados para estos filtros" : "No results for these filters"}
                 </div>
-              </div>
+              ) : (
+                <div style={{ borderRadius: 8, border: "1px solid #bbf7d0", background: "#f0fdf4", overflow: "hidden" }}>
+                  <div style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#166534" }}>
+                      {matching.length} {es ? "personas seleccionadas" : "people selected"}
+                    </div>
+                    <div style={{ marginLeft: "auto", display: "flex", gap: -4 }}>
+                      {matching.slice(0, 6).map(p => (
+                        <div key={p.id} title={p.first + " " + p.last}
+                          className="av-circle"
+                          style={{ width: 24, height: 24, fontSize: 9, background: p.color, marginLeft: -6, border: "2px solid #f0fdf4" }}>
+                          {initials(p.first + " " + p.last)}
+                        </div>
+                      ))}
+                      {matching.length > 6 && <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#166534", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", marginLeft: -6, border: "2px solid #f0fdf4" }}>+{matching.length - 6}</div>}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "0 12px 8px" }}>
+                    {matching.slice(0, 8).map(p => (
+                      <span key={p.id} style={{ fontSize: 11, background: "#dcfce7", color: "#166534", padding: "1px 7px", borderRadius: 10, fontWeight: 500 }}>{p.first} {p.last}</span>
+                    ))}
+                    {matching.length > 8 && <span style={{ fontSize: 11, color: "#166534" }}>+{matching.length - 8} {es ? "más" : "more"}</span>}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2 */}
+              {hasFilter && matching.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".06em", borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+                    {es ? "Paso 2 — Define la tarea" : "Step 2 — Define the task"}
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>{es ? "Descripción de la tarea" : "Task description"} *</label>
+                    <input value={bText} onChange={e => setBText(e.target.value)} placeholder={es ? "¿Qué hay que hacer?" : "What needs to be done?"} autoFocus />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label>{es ? "Fecha límite" : "Due date"}</label>
+                      <input type="date" value={bDue} onChange={e => setBDue(e.target.value)} />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label>{es ? "Asignado a" : "Assigned to"}</label>
+                      <select value={bAssignee} onChange={e => setBAssignee(e.target.value)}>
+                        <option value="">{es ? "Sin asignar" : "Unassigned"}</option>
+                        {(users || []).map(u => <option key={u.email} value={u.email}>{u.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
         {!done && (
           <div className="modal-foot">
-            <button className="btn" onClick={onClose}>{lang === "es" ? "Cancelar" : "Cancel"}</button>
-            <button className="btn btn-primary" disabled={!bText.trim() || matching.length === 0} onClick={assign}>
-              <Icon name="check" /> {lang === "es" ? `Asignar a ${matching.length} personas` : `Assign to ${matching.length} people`}
+            <button className="btn" onClick={onClose}>{es ? "Cancelar" : "Cancel"}</button>
+            <button className="btn btn-primary" disabled={!bText.trim() || matching.length === 0 || !hasFilter} onClick={assign}>
+              <Icon name="check" /> {es ? `Asignar a ${matching.length} persona${matching.length !== 1 ? "s" : ""}` : `Assign to ${matching.length} person${matching.length !== 1 ? "s" : ""}`}
             </button>
           </div>
         )}

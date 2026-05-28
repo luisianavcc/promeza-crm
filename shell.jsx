@@ -12,6 +12,7 @@ const Sidebar = ({ route, go, t, counts, mobileOpen, onClose }) => {
     { id: "campaigns", label: t.nav.campaigns || "Campañas",   icon: "megaphone" },
     { id: "calendar",  label: t.nav.calendar  || "Calendario", icon: "calendar" },
     { id: "goals",     label: t.nav.goals     || "Metas",      icon: "target",   count: counts.completedGoals || null, countStyle: { background: "var(--good)" } },
+    { id: "duplicates", label: t.nav.duplicates || "Duplicados",  icon: "copy",     count: counts.dups || null, countStyle: { background: "#f59e0b" } },
     { id: "map",       label: t.nav.map,                   icon: "map" },
   ];
 

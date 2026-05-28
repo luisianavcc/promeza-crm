@@ -248,18 +248,22 @@ const App = () => {
         const newPersonas = window.PROMEZA_DATA.personas.filter(p => !savedPersonaIds.has(p.id));
         const savedEntityIds = new Set((parsed.entities || []).map(e => e.id));
         const newEntities = window.PROMEZA_DATA.entities.filter(e => !savedEntityIds.has(e.id));
+        // Merge demo tasks for new personas only (don't overwrite existing task lists)
+        const demoTasks = window.PROMEZA_DATA.tasks || {};
+        const mergedTasks = { ...demoTasks, ...(parsed.tasks || {}) };
         return {
           ...parsed,
           personas: [...(parsed.personas || []), ...newPersonas],
           entities: [...(parsed.entities || []), ...newEntities],
           interactions: parsed.interactions || {},
-          tasks: parsed.tasks || {},
+          tasks: mergedTasks,
           changelog: parsed.changelog || {},
           segments: parsed.segments || [],
           attachments: parsed.attachments || {},
           projects: parsed.projects || [],
           campaigns: parsed.campaigns || [],
           goals: parsed.goals || [],
+          calendarEvents: parsed.calendarEvents || [],
         };
       }
     } catch {}
@@ -268,13 +272,14 @@ const App = () => {
       entities: [...window.PROMEZA_DATA.entities],
       comments: { ...window.PROMEZA_DATA.comments },
       interactions: {},
-      tasks: {},
+      tasks: { ...(window.PROMEZA_DATA.tasks || {}) },
       changelog: {},
       segments: [],
       attachments: {},
       projects: [],
       campaigns: [],
       goals: [],
+      calendarEvents: [],
     };
   });
 
@@ -551,6 +556,13 @@ const App = () => {
     setData(d => ({ ...d, campaigns: [campaign, ...(d.campaigns || [])] }));
   };
 
+  const addCalendarEvent = (evt) => {
+    setData(d => ({ ...d, calendarEvents: [...(d.calendarEvents || []), { id: "cal" + Date.now(), ...evt }] }));
+  };
+  const deleteCalendarEvent = (id) => {
+    setData(d => ({ ...d, calendarEvents: (d.calendarEvents || []).filter(e => e.id !== id) }));
+  };
+
   const addGoal = (goal) => {
     const GOAL_METRICS = window.GOAL_METRICS || [];
     const metric = GOAL_METRICS.find(m => m.id === goal.metric);
@@ -756,7 +768,7 @@ const App = () => {
     case "projects": view = <ProjectsListView lang={lang} data={data} go={go} onAddProject={addProject} />; break;
     case "project": view = <ProjectDetailView id={route.id} lang={lang} data={data} go={go} onUpdateProject={updateProject} onDeleteProject={deleteProject} onAddMember={addProjectMember} onRemoveMember={removeProjectMember} comments={data.comments[route.id] || []} onAddComment={(projectId, text) => addComment(projectId, text)} attachments={data.attachments[route.id] || []} onAddAttachment={(att) => addAttachment(route.id, att)} onDeleteAttachment={(attId) => deleteAttachment(route.id, attId)} />; break;
     case "campaigns": view = <CampaignsView lang={lang} data={data} go={go} onSaveCampaign={saveCampaign} />; break;
-    case "calendar": view = <CalendarView lang={lang} data={data} go={go} />; break;
+    case "calendar": view = <CalendarView lang={lang} data={data} go={go} onAddCalendarEvent={addCalendarEvent} onDeleteCalendarEvent={deleteCalendarEvent} onAddTask={addTask} />; break;
     case "goals": view = <GoalsView lang={lang} data={data} go={go} onAddGoal={addGoal} onUpdateGoal={updateGoal} onDeleteGoal={deleteGoal} />; break;
     case "county": view = <CountyView t={t} lang={lang} data={data} go={go} />; break;
     case "map": view = <MapPage t={t} lang={lang} data={data} go={go} />; break;
