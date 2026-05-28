@@ -6,6 +6,7 @@ window.PROMEZA_I18N = {
     nav: {
       home: "Inicio", personas: "Personas", entities: "Entidades",
       map: "Mapa", search: "Buscar", tasks: "Tareas", myTasks: "Mis tareas",
+      projects: "Proyectos", campaigns: "Campañas", calendar: "Calendario", goals: "Metas",
       newPerson: "Nueva persona", newEntity: "Nueva entidad",
     },
     common: {
@@ -141,6 +142,7 @@ window.PROMEZA_I18N = {
     nav: {
       home: "Home", personas: "People", entities: "Entities",
       map: "Map", search: "Search", tasks: "Tasks", myTasks: "My tasks",
+      projects: "Projects", campaigns: "Campaigns", calendar: "Calendar", goals: "Goals",
       newPerson: "New person", newEntity: "New entity",
     },
     common: {

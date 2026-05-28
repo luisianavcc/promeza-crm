@@ -336,6 +336,22 @@ const ProjectDetailView = ({ id, lang, data, go, onUpdateProject, onDeleteProjec
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flexShrink: 0 }}>
+            <button className="btn btn-sm" title="Exportar participantes a CSV"
+              onClick={() => {
+                const rows = (pr.members || []).map(m => {
+                  const p = data.personas.find(x => x.id === m.personaId);
+                  if (!p) return null;
+                  return { nombre: p.first, apellido: p.last, rol: m.role, email: p.email || "", telefono: p.phone || "", ciudad: p.city || "", pais: p.country || "", addedAt: m.addedAt || "" };
+                }).filter(Boolean);
+                exportCSV(pr.name.replace(/[^a-z0-9]/gi, "_") + "_participantes.csv", [
+                  { key: "nombre", label: "Nombre" }, { key: "apellido", label: "Apellido" },
+                  { key: "rol", label: "Rol" }, { key: "email", label: "Email" },
+                  { key: "telefono", label: "Teléfono" }, { key: "ciudad", label: "Ciudad" },
+                  { key: "pais", label: "País" }, { key: "addedAt", label: "Fecha agregado" },
+                ], rows);
+              }}>
+              <Icon name="download" size={13} /> Exportar
+            </button>
             <select value={pr.status} onChange={e => onUpdateProject(pr.id, { status: e.target.value })}
               style={{ height: 34, padding: "0 10px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--bg)", fontFamily: "inherit", fontSize: 12.5, color: ps.color, fontWeight: 600, cursor: "pointer" }}>
               {(window.PROJECT_STATUSES || []).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}

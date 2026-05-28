@@ -49,6 +49,10 @@ const Icon = ({ name, size = 16, className = "" }) => {
     case "folder": return <svg {...common}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>;
     case "shield": return <svg {...common}><path d="M12 3l8 4v5c0 4.4-3.3 8.5-8 9.9C7.3 20.5 4 16.4 4 12V7z"/></svg>;
     case "zap": return <svg {...common}><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg>;
+    case "bell": return <svg {...common}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+    case "send": return <svg {...common}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+    case "target": return <svg {...common}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>;
+    case "megaphone": return <svg {...common}><path d="M3 11v2a8 8 0 0 0 8 8v0"/><path d="M11 5H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h6l7 4V1l-7 4z"/></svg>;
     default: return null;
   }
 };
