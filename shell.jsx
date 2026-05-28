@@ -74,7 +74,7 @@ const Sidebar = ({ route, go, t, counts, mobileOpen, onClose }) => {
 };
 
 // ─── Notifications panel ───
-const NotificationsPanel = ({ data, lang, go, onClose }) => {
+const NotificationsPanel = ({ data, lang, go, onClose, dupCount = 0 }) => {
   const today = new Date().toISOString().slice(0, 10);
   const in7 = new Date(); in7.setDate(in7.getDate() + 7);
   const in7str = in7.toISOString().slice(0, 10);
@@ -114,7 +114,7 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
     ? data.personas.filter(p => window.hasContactIssue(p)).slice(0, 6)
     : [];
 
-  const total = birthdayAlerts.length + overdueItems.length + upcomingProjects.length + (badInfoPersonas.length > 0 ? 1 : 0);
+  const total = birthdayAlerts.length + overdueItems.length + upcomingProjects.length + (badInfoPersonas.length > 0 ? 1 : 0) + (dupCount > 0 ? 1 : 0);
 
   return (
     <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 360, background: "var(--bg)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "var(--shadow-lg)", zIndex: 500, overflow: "hidden" }}>
@@ -127,6 +127,29 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
           <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
             <div style={{ fontSize: 28, marginBottom: 8 }}>✓</div>
             Todo al día — sin alertas
+          </div>
+        )}
+
+        {dupCount > 0 && (
+          <div>
+            <div style={{ padding: "8px 16px 4px", fontSize: 10.5, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: ".06em" }}>
+              Posibles duplicados
+            </div>
+            <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", background: "#faf5ff" }}
+              onClick={() => { go({ name: "duplicates" }); onClose(); }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ede9fe", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                <Icon name="users" size={15} style={{ color: "#7c3aed" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: "#7c3aed" }}>
+                  Se {dupCount === 1 ? "encontró" : "encontraron"} {dupCount} posible{dupCount !== 1 ? "s" : ""} duplicado{dupCount !== 1 ? "s" : ""}
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+                  {lang === "es" ? "Revisar y fusionar →" : "Review and merge →"}
+                </div>
+              </div>
+              <span style={{ fontSize: 18, fontWeight: 800, color: "#7c3aed" }}>{dupCount}</span>
+            </div>
           </div>
         )}
 
@@ -244,7 +267,7 @@ const NotificationsPanel = ({ data, lang, go, onClose }) => {
   );
 };
 
-const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, userEmail, data, go, onMenuToggle }) => {
+const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, userEmail, data, go, onMenuToggle, dupCount = 0 }) => {
   const [showNotif, setShowNotif] = React.useState(false);
   const [showSearch, setShowSearch] = React.useState(false);
   const notifRef = React.useRef(null);
@@ -325,8 +348,9 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
     }).length;
     n += Object.values(data.tasks || {}).flat().filter(tk => !tk.done && tk.due && tk.due < today).length;
     if (window.hasContactIssue && data.personas.some(p => window.hasContactIssue(p))) n += 1;
+    if (dupCount > 0) n += 1;
     return Math.min(99, n);
-  }, [data, today]);
+  }, [data, today, dupCount]);
 
   const stages = window.PIPELINE_STAGES || [];
   const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
@@ -498,7 +522,7 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
           )}
         </button>
         {showNotif && data && (
-          <NotificationsPanel data={data} lang={lang} go={go} onClose={() => setShowNotif(false)} />
+          <NotificationsPanel data={data} lang={lang} go={go} onClose={() => setShowNotif(false)} dupCount={dupCount} />
         )}
       </div>
 

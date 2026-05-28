@@ -133,7 +133,7 @@ const BatchTaskModal = ({ t, lang, data, onAddTask, users, currentUser, onClose 
 };
 
 // ─── Global tasks view ───
-const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, onDeleteTask, users, currentUser }) => {
+const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, onDeleteTask, users, currentUser, dupCount = 0 }) => {
   const [filterAssignee, setFilterAssignee] = React.useState("all");
   const [filterStatus, setFilterStatus] = React.useState("pending");
   const [filterPersona, setFilterPersona] = React.useState("all");
@@ -243,6 +243,28 @@ const GlobalTasksView = ({ t, lang, data, go, tasks, onAddTask, onToggleTask, on
           </button>
         </div>
       </div>
+      {dupCount > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", marginBottom: 14, background: "#faf5ff", border: "1.5px solid #e9d5ff", borderRadius: 10 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 8, background: "#ede9fe", display: "grid", placeItems: "center", flexShrink: 0 }}>
+            <Icon name="users" size={15} style={{ color: "#7c3aed" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, color: "#7c3aed" }}>
+              Se {dupCount === 1 ? "encontró" : "encontraron"} {dupCount} posible{dupCount !== 1 ? "s" : ""} duplicado{dupCount !== 1 ? "s" : ""}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+              {lang === "es" ? "Revisa y fusiona los registros repetidos." : "Review and merge duplicate records."}
+            </div>
+          </div>
+          <button
+            className="btn btn-sm"
+            style={{ background: "#7c3aed", color: "#fff", borderColor: "#7c3aed", flexShrink: 0 }}
+            onClick={() => go({ name: "duplicates" })}>
+            <Icon name="users" size={12} /> {lang === "es" ? "Revisar duplicados →" : "Review duplicates →"}
+          </button>
+        </div>
+      )}
+
       {showBatch && <BatchTaskModal t={t} lang={lang} data={data} onAddTask={onAddTask} users={users} currentUser={currentUser} onClose={() => setShowBatch(false)} />}
 
       {/* New task form */}

@@ -739,6 +739,7 @@ const App = () => {
     case "tasks": view = <GlobalTasksView t={t} lang={lang} data={data} go={go}
       tasks={data.tasks} users={window.PROMEZA_USERS || []} currentUser={userEmail}
       onAddTask={addTask} onToggleTask={toggleTask} onDeleteTask={deleteTask}
+      dupCount={totalDups}
     />; break;
     case "my-tasks": view = <MyTasksView t={t} lang={lang} data={data} go={go}
       tasks={data.tasks} onToggleTask={toggleTask} onDeleteTask={deleteTask}
@@ -769,6 +770,7 @@ const App = () => {
         data={data}
         go={go}
         onMenuToggle={() => setSideOpen(v => !v)}
+        dupCount={counts.dups}
       />
       <main className="main">{view}</main>
 
