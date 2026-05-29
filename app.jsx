@@ -238,23 +238,29 @@ const App = () => {
   const [entityDupPairs, setEntityDupPairs] = useState([]);
   const [sideOpen, setSideOpen] = useState(false);
 
+  // Compute stable 7-digit UID from internal ID string
+  const computeUID = (id) => {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+    return String((Math.abs(h) % 9000000) + 1000000);
+  };
+  const withUIDs = (arr) => arr.map(x => x.uid ? x : { ...x, uid: computeUID(x.id) });
+
   const [data, setData] = useState(() => {
     try {
       const saved = localStorage.getItem("promeza_data");
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Merge any new personas/entities from PROMEZA_DATA not yet in localStorage
         const savedPersonaIds = new Set((parsed.personas || []).map(p => p.id));
         const newPersonas = window.PROMEZA_DATA.personas.filter(p => !savedPersonaIds.has(p.id));
         const savedEntityIds = new Set((parsed.entities || []).map(e => e.id));
         const newEntities = window.PROMEZA_DATA.entities.filter(e => !savedEntityIds.has(e.id));
-        // Merge demo tasks for new personas only (don't overwrite existing task lists)
         const demoTasks = window.PROMEZA_DATA.tasks || {};
         const mergedTasks = { ...demoTasks, ...(parsed.tasks || {}) };
         return {
           ...parsed,
-          personas: [...(parsed.personas || []), ...newPersonas],
-          entities: [...(parsed.entities || []), ...newEntities],
+          personas: withUIDs([...(parsed.personas || []), ...newPersonas]),
+          entities: withUIDs([...(parsed.entities || []), ...newEntities]),
           interactions: parsed.interactions || {},
           tasks: mergedTasks,
           changelog: parsed.changelog || {},
@@ -268,8 +274,8 @@ const App = () => {
       }
     } catch {}
     return {
-      personas: [...window.PROMEZA_DATA.personas],
-      entities: [...window.PROMEZA_DATA.entities],
+      personas: withUIDs([...window.PROMEZA_DATA.personas]),
+      entities: withUIDs([...window.PROMEZA_DATA.entities]),
       comments: { ...window.PROMEZA_DATA.comments },
       interactions: {},
       tasks: { ...(window.PROMEZA_DATA.tasks || {}) },
@@ -382,6 +388,7 @@ const App = () => {
       nextAction: form.nextAction || "",
       birthday: form.birthday, lastContact: form.lastContact,
       color,
+      uid: computeUID(id),
     };
     const createdAt = new Date().toISOString();
     setData(d => {
@@ -408,7 +415,7 @@ const App = () => {
       website: form.website, social: form.social,
       size: form.size ? parseInt(form.size) : null,
       founded: form.founded, parent: form.parent || null,
-      tags, status: "activo",
+      tags, status: "activo", uid: computeUID(id),
     };
     const createdAtE = new Date().toISOString();
     setData(d => {

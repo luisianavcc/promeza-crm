@@ -283,23 +283,16 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
     const raw = (query || "").trim();
     if (!raw || raw.length < 2 || !data) return null;
     const q = raw.toLowerCase();
-
-    // UID hash (inline — no external dependency)
-    const uid = (id) => {
-      let h = 0;
-      for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
-      return String((Math.abs(h) % 9000000) + 1000000);
-    };
-
-    // If query is a number (with or without #) → UID search only
     const stripped = q.replace(/^#/, "");
-    if (/^\d+$/.test(stripped) && stripped.length >= 2) {
-      const personas = data.personas.filter(p => uid(p.id).startsWith(stripped)).slice(0, 5);
-      const entities = data.entities.filter(e => uid(e.id).startsWith(stripped)).slice(0, 4);
+    const norm = s => (s || "").toLowerCase();
+
+    // UID search: pure digits (with or without #)
+    if (/^\d+$/.test(stripped)) {
+      const personas = data.personas.filter(p => (p.uid || "").startsWith(stripped)).slice(0, 5);
+      const entities = data.entities.filter(e => (e.uid || "").startsWith(stripped)).slice(0, 4);
       return { personas, entities, projects: [], total: personas.length + entities.length };
     }
 
-    const norm = s => (s || "").toLowerCase();
     const matchP = (p) =>
       norm(p.first + " " + p.last).includes(q) ||
       norm(p.email).includes(q) ||
@@ -464,7 +457,7 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
                     {data.personas.filter(p => {
                       const q = query.trim().toLowerCase();
                       const stripped = q.replace(/^#/, "");
-                      if (/^\d+$/.test(stripped)) { let h=0; for(let i=0;i<p.id.length;i++) h=(Math.imul(31,h)+p.id.charCodeAt(i))|0; return String((Math.abs(h)%9000000)+1000000).startsWith(stripped); }
+                      if (/^\d+$/.test(stripped)) return (p.uid || "").startsWith(stripped);
                       const norm = s => (s || "").toLowerCase();
                       return norm(p.first + " " + p.last).includes(q) || norm(p.email).includes(q) || norm(p.city).includes(q);
                     }).length > 5 && (

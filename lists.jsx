@@ -306,13 +306,11 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
     if (tagFilter && !(p.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (emailFilter && !(p.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
     if (phoneFilter && !(p.phone || "").toLowerCase().includes(phoneFilter.toLowerCase())) return false;
-    const _uidFn = (id) => { let h=0; for(let i=0;i<id.length;i++) h=(Math.imul(31,h)+id.charCodeAt(i))|0; return String((Math.abs(h)%9000000)+1000000); };
-    const uid = _uidFn(p.id);
     const checkQ = (query) => {
       if (!query) return true;
       const sq = query.trim().toLowerCase();
       const stripped = sq.replace(/^#/, "");
-      if (/^\d+$/.test(stripped)) return uid.startsWith(stripped);
+      if (/^\d+$/.test(stripped)) return (p.uid || "").startsWith(stripped);
       const searchStr = (fullName(p) + " " + (p.email||"") + " " + (p.phone||"") + " " + (p.city||"") + " " + (p.tags||[]).join(" ")).toLowerCase();
       return searchStr.includes(sq);
     };
@@ -800,13 +798,11 @@ const EntitiesList = ({ t, lang, data, go, onImportEntities, globalQ = "" }) => 
     if (tagFilter && !(e.tags || []).some(tg => tg.toLowerCase().includes(tagFilter.toLowerCase()))) return false;
     if (emailFilter && !(e.email || "").toLowerCase().includes(emailFilter.toLowerCase())) return false;
     if (phoneFilter && !(e.phone || "").toLowerCase().includes(phoneFilter.toLowerCase())) return false;
-    const _uidFn = (id) => { let h=0; for(let i=0;i<id.length;i++) h=(Math.imul(31,h)+id.charCodeAt(i))|0; return String((Math.abs(h)%9000000)+1000000); };
-    const uid = _uidFn(e.id);
     const checkQ = (query) => {
       if (!query) return true;
       const sq = query.trim().toLowerCase();
       const stripped = sq.replace(/^#/, "");
-      if (/^\d+$/.test(stripped)) return uid.startsWith(stripped);
+      if (/^\d+$/.test(stripped)) return (e.uid || "").startsWith(stripped);
       const searchStr = (e.name + " " + (e.email||"") + " " + (e.phone||"") + " " + (e.city||"") + " " + (e.country||"")).toLowerCase();
       return searchStr.includes(sq);
     };
