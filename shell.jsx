@@ -280,25 +280,38 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
 
   // Live search results
   const searchResults = React.useMemo(() => {
-    const q = (query || "").trim().toLowerCase();
-    if (!q || q.length < 2 || !data) return null;
+    const raw = (query || "").trim();
+    if (!raw || raw.length < 2 || !data) return null;
+    const q = raw.toLowerCase();
+
+    // UID hash (inline — no external dependency)
+    const uid = (id) => {
+      let h = 0;
+      for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+      return String((Math.abs(h) % 9000000) + 1000000);
+    };
+
+    // If query is a number (with or without #) → UID search only
+    const stripped = q.replace(/^#/, "");
+    if (/^\d+$/.test(stripped) && stripped.length >= 2) {
+      const personas = data.personas.filter(p => uid(p.id).startsWith(stripped)).slice(0, 5);
+      const entities = data.entities.filter(e => uid(e.id).startsWith(stripped)).slice(0, 4);
+      return { personas, entities, projects: [], total: personas.length + entities.length };
+    }
+
     const norm = s => (s || "").toLowerCase();
-    const qClean = q.replace(/^#/, "");
-    const getUID = window.getUID || (() => "");
     const matchP = (p) =>
-      norm(p.first + " " + p.last).includes(qClean) ||
-      norm(p.email).includes(qClean) ||
-      norm((p.phone || "").replace(/\D/g, "")).includes(qClean.replace(/\D/g, "")) ||
-      norm(p.city).includes(qClean) ||
-      norm(p.role).includes(qClean) ||
-      (p.tags || []).some(tg => norm(tg).includes(qClean)) ||
-      getUID(p.id).includes(qClean);
+      norm(p.first + " " + p.last).includes(q) ||
+      norm(p.email).includes(q) ||
+      norm((p.phone || "").replace(/\D/g, "")).includes(q.replace(/\D/g, "")) ||
+      norm(p.city).includes(q) ||
+      norm(p.role).includes(q) ||
+      (p.tags || []).some(tg => norm(tg).includes(q));
     const matchE = (e) =>
-      norm(e.name).includes(qClean) ||
-      norm(e.email).includes(qClean) ||
-      norm(e.city).includes(qClean) ||
-      norm(e.phone).includes(qClean) ||
-      getUID(e.id).includes(qClean);
+      norm(e.name).includes(q) ||
+      norm(e.email).includes(q) ||
+      norm(e.city).includes(q) ||
+      norm(e.phone).includes(q);
     const matchPr = (pr) =>
       norm(pr.name).includes(q) ||
       norm(pr.description).includes(q) ||
@@ -449,9 +462,11 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
                       );
                     })}
                     {data.personas.filter(p => {
-                      const q = query.trim().toLowerCase().replace(/^#/, "");
+                      const q = query.trim().toLowerCase();
+                      const stripped = q.replace(/^#/, "");
+                      if (/^\d+$/.test(stripped)) { let h=0; for(let i=0;i<p.id.length;i++) h=(Math.imul(31,h)+p.id.charCodeAt(i))|0; return String((Math.abs(h)%9000000)+1000000).startsWith(stripped); }
                       const norm = s => (s || "").toLowerCase();
-                      return norm(p.first + " " + p.last).includes(q) || norm(p.email).includes(q) || norm(p.city).includes(q) || (window.getUID ? window.getUID(p.id).includes(q) : false);
+                      return norm(p.first + " " + p.last).includes(q) || norm(p.email).includes(q) || norm(p.city).includes(q);
                     }).length > 5 && (
                       <div style={{ padding: "7px 16px", fontSize: 12, color: "var(--accent)", fontWeight: 600, cursor: "pointer", textAlign: "center" }}
                         onClick={() => { onSearchSubmit(); closeSearch(); }}>
