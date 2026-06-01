@@ -173,7 +173,7 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
                 </svg>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>Datos cifrados con AES-256</div>
-                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Auto-cierre: 15 min de inactividad</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Auto-cierre: 1 hora de inactividad</div>
                 </div>
               </div>
 
@@ -420,8 +420,8 @@ const App = () => {
     }).catch(console.error);
   }, [data, cryptoKey]);
 
-  // Auto-logout on inactivity (15 minutes)
-  const INACTIVITY_MS = 15 * 60 * 1000;
+  // Auto-logout on inactivity (1 hour)
+  const INACTIVITY_MS = 60 * 60 * 1000;
   useEffect(() => {
     if (!userEmail) return;
     let timer = setTimeout(() => {
