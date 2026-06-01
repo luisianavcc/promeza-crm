@@ -4,7 +4,7 @@ const { useState, useMemo, useEffect, useRef } = React;
 
 // ─── Settings Modal ───
 
-const SettingsModal = ({ t, lang, data, onClose, onLogout }) => {
+const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
   const [ejsCfg, setEjsCfg] = useState(() => {
     try { return JSON.parse(localStorage.getItem("promeza_ejs")) || {}; } catch { return {}; }
   });
@@ -14,12 +14,36 @@ const SettingsModal = ({ t, lang, data, onClose, onLogout }) => {
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState("airtable");
 
+  // Security tab state
+  const [curPass, setCurPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [secMsg, setSecMsg] = useState(null); // { type: "ok"|"err", text }
+  const [secLoading, setSecLoading] = useState(false);
+
   const st = t.settings || {};
   const tabs = [
     { id: "airtable", label: "Airtable" },
     { id: "emailjs", label: "EmailJS" },
+    { id: "security", label: "Seguridad" },
     { id: "account", label: lang === "es" ? "Cuenta" : "Account" },
   ];
+
+  const doChangePassword = async () => {
+    setSecMsg(null);
+    if (!curPass || !newPass || !confirmPass) { setSecMsg({ type: "err", text: "Completa todos los campos." }); return; }
+    if (newPass !== confirmPass) { setSecMsg({ type: "err", text: "Las contraseñas nuevas no coinciden." }); return; }
+    if (newPass.length < 8) { setSecMsg({ type: "err", text: "La contraseña debe tener al menos 8 caracteres." }); return; }
+    setSecLoading(true);
+    try {
+      const result = await window.CryptoUtils.changePassword(curPass, newPass, data);
+      if (result.error) { setSecMsg({ type: "err", text: result.error }); }
+      else { setSecMsg({ type: "ok", text: "Contraseña cambiada correctamente." }); setCurPass(""); setNewPass(""); setConfirmPass(""); }
+    } catch (err) {
+      setSecMsg({ type: "err", text: "Error al cambiar contraseña: " + err.message });
+    }
+    setSecLoading(false);
+  };
 
   const saveAll = () => {
     localStorage.setItem("promeza_ejs", JSON.stringify(ejsCfg));
@@ -140,20 +164,72 @@ const SettingsModal = ({ t, lang, data, onClose, onLogout }) => {
             </div>
           )}
 
+          {/* ─── Security ─── */}
+          {tab === "security" && (
+            <div>
+              <div style={{ background: "var(--bg-soft)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-700)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                </svg>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Datos cifrados con AES-256</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Auto-cierre: 15 min de inactividad</div>
+                </div>
+              </div>
+
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Cambiar contraseña</div>
+              <div className="field" style={{ marginBottom: 10 }}>
+                <label>Contraseña actual</label>
+                <input type="password" value={curPass} onChange={e => setCurPass(e.target.value)} placeholder="Contraseña actual" disabled={secLoading} />
+              </div>
+              <div className="field" style={{ marginBottom: 10 }}>
+                <label>Nueva contraseña</label>
+                <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Nueva contraseña (mín. 8 caracteres)" disabled={secLoading} />
+              </div>
+              <div className="field" style={{ marginBottom: 14 }}>
+                <label>Confirmar nueva contraseña</label>
+                <input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="Repite la nueva contraseña" disabled={secLoading} />
+              </div>
+
+              {secMsg && (
+                <div style={{
+                  padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 12,
+                  background: secMsg.type === "ok" ? "#f0fdf4" : "#fff5f5",
+                  color: secMsg.type === "ok" ? "#166534" : "#991b1b",
+                  border: "1px solid " + (secMsg.type === "ok" ? "#bbf7d0" : "#fecaca"),
+                }}>
+                  {secMsg.text}
+                </div>
+              )}
+
+              <button className="btn btn-primary" onClick={doChangePassword} disabled={secLoading}>
+                {secLoading ? "Guardando…" : "Cambiar contraseña"}
+              </button>
+
+              <div style={{ marginTop: 20, borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+                <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
+                  onClick={() => {
+                    if (confirm("¿Cerrar esta sesión?")) {
+                      clearSession();
+                      sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY || "promeza_sk");
+                      onLogout();
+                    }
+                  }}>
+                  <Icon name="log-out" /> Cerrar esta sesión
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ─── Account ─── */}
           {tab === "account" && (
             <div>
               <div style={{ background: "var(--bg-soft)", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{lang === "es" ? "Cuenta activa" : "Active account"}</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div className="av-circle" style={{ background: "var(--accent)" }}>B</div>
-                  <span style={{ fontSize: 13 }}>betty@promeza.com</span>
+                  <div className="av-circle" style={{ background: "var(--accent)" }}>P</div>
+                  <span style={{ fontSize: 13 }}>Promeza</span>
                 </div>
-              </div>
-              <div style={{ marginBottom: 12, fontSize: 13, color: "var(--ink-3)" }}>
-                {lang === "es"
-                  ? "Para cambiar la contraseña, cierra sesión y usa la opción '¿Olvidaste tu contraseña?' en el login."
-                  : "To change your password, sign out and use the 'Forgot password?' option on the login screen."}
               </div>
               <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
                 onClick={() => {
@@ -246,60 +322,135 @@ const App = () => {
   };
   const withUIDs = (arr) => arr.map(x => x.uid ? x : { ...x, uid: computeUID(x.id) });
 
-  const [data, setData] = useState(() => {
-    try {
-      const saved = localStorage.getItem("promeza_data");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const savedPersonaIds = new Set((parsed.personas || []).map(p => p.id));
-        const newPersonas = window.PROMEZA_DATA.personas.filter(p => !savedPersonaIds.has(p.id));
-        const savedEntityIds = new Set((parsed.entities || []).map(e => e.id));
-        const newEntities = window.PROMEZA_DATA.entities.filter(e => !savedEntityIds.has(e.id));
-        const demoTasks = window.PROMEZA_DATA.tasks || {};
-        const mergedTasks = { ...demoTasks, ...(parsed.tasks || {}) };
-        return {
-          ...parsed,
-          personas: withUIDs([...(parsed.personas || []), ...newPersonas]),
-          entities: withUIDs([...(parsed.entities || []), ...newEntities]),
-          interactions: parsed.interactions || {},
-          tasks: mergedTasks,
-          changelog: parsed.changelog || {},
-          segments: parsed.segments || [],
-          attachments: parsed.attachments || {},
-          projects: parsed.projects || [],
-          campaigns: parsed.campaigns || [],
-          goals: parsed.goals || [],
-          calendarEvents: parsed.calendarEvents || [],
-        };
-      }
-    } catch {}
-    return {
-      personas: withUIDs([...window.PROMEZA_DATA.personas]),
-      entities: withUIDs([...window.PROMEZA_DATA.entities]),
-      comments: { ...window.PROMEZA_DATA.comments },
-      interactions: {},
-      tasks: { ...(window.PROMEZA_DATA.tasks || {}) },
-      changelog: {},
-      segments: [],
-      attachments: {},
-      projects: [],
-      campaigns: [],
-      goals: [],
-      calendarEvents: [],
-    };
+  const [cryptoKey, setCryptoKey] = useState(null);
+  const [dataReady, setDataReady] = useState(false);
+  const [data, setData] = useState(null);
+  const [needsUnlock, setNeedsUnlock] = useState(false);
+
+  const freshData = () => ({
+    personas: withUIDs([...window.PROMEZA_DATA.personas]),
+    entities: withUIDs([...window.PROMEZA_DATA.entities]),
+    comments: { ...window.PROMEZA_DATA.comments },
+    interactions: {},
+    tasks: { ...(window.PROMEZA_DATA.tasks || {}) },
+    changelog: {},
+    segments: [],
+    attachments: {},
+    projects: [],
+    campaigns: [],
+    goals: [],
+    calendarEvents: [],
   });
 
+  const processLoadedData = (parsed) => {
+    const savedPersonaIds = new Set((parsed.personas || []).map(p => p.id));
+    const newPersonas = window.PROMEZA_DATA.personas.filter(p => !savedPersonaIds.has(p.id));
+    const savedEntityIds = new Set((parsed.entities || []).map(e => e.id));
+    const newEntities = window.PROMEZA_DATA.entities.filter(e => !savedEntityIds.has(e.id));
+    const demoTasks = window.PROMEZA_DATA.tasks || {};
+    const mergedTasks = { ...demoTasks, ...(parsed.tasks || {}) };
+    return {
+      ...parsed,
+      personas: withUIDs([...(parsed.personas || []), ...newPersonas]),
+      entities: withUIDs([...(parsed.entities || []), ...newEntities]),
+      interactions: parsed.interactions || {},
+      tasks: mergedTasks,
+      changelog: parsed.changelog || {},
+      segments: parsed.segments || [],
+      attachments: parsed.attachments || {},
+      projects: parsed.projects || [],
+      campaigns: parsed.campaigns || [],
+      goals: parsed.goals || [],
+      calendarEvents: parsed.calendarEvents || [],
+    };
+  };
+
   useEffect(() => {
-    localStorage.setItem("promeza_data", JSON.stringify(data));
-  }, [data]);
+    const initData = async () => {
+      // 1. Try to load crypto key from sessionStorage
+      let key = await window.CryptoUtils.loadSessionKey();
+
+      if (!key) {
+        // Session valid but no key → need to unlock (re-enter password)
+        setNeedsUnlock(true);
+        setDataReady(true);
+        return;
+      }
+
+      setCryptoKey(key);
+
+      try {
+        // 2. Try to load encrypted data
+        const enc = localStorage.getItem("promeza_data_enc");
+        if (enc) {
+          const json = await window.CryptoUtils.decrypt(enc, key);
+          const parsed = JSON.parse(json);
+          setData(processLoadedData(parsed));
+          setDataReady(true);
+          return;
+        }
+
+        // 3. Migration: old unencrypted data
+        const old = localStorage.getItem("promeza_data");
+        if (old) {
+          const parsed = JSON.parse(old);
+          const processed = processLoadedData(parsed);
+          setData(processed);
+          setDataReady(true);
+          localStorage.removeItem("promeza_data"); // will be re-saved encrypted
+          return;
+        }
+      } catch (err) {
+        console.error("Data load error:", err);
+        // Fall back to fresh data on crypto error
+      }
+
+      // 4. Fresh start
+      setData(freshData());
+      setDataReady(true);
+    };
+
+    if (userEmail) initData();
+  }, [userEmail]);
+
+  useEffect(() => {
+    if (!data || !cryptoKey) return;
+    window.CryptoUtils.encrypt(JSON.stringify(data), cryptoKey).then(enc => {
+      localStorage.setItem("promeza_data_enc", enc);
+    }).catch(console.error);
+  }, [data, cryptoKey]);
+
+  // Auto-logout on inactivity (15 minutes)
+  const INACTIVITY_MS = 15 * 60 * 1000;
+  useEffect(() => {
+    if (!userEmail) return;
+    let timer = setTimeout(() => {
+      clearSession();
+      sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY || "promeza_sk");
+      setUserEmail(null);
+    }, INACTIVITY_MS);
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        clearSession();
+        sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY || "promeza_sk");
+        setUserEmail(null);
+      }, INACTIVITY_MS);
+    };
+    const events = ["mousedown", "keypress", "scroll", "touchstart", "click"];
+    events.forEach(e => window.addEventListener(e, reset));
+    return () => { clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)); };
+  }, [userEmail]);
 
   // Auto-scan for duplicates on load + auto-generate tasks for new pairs
   useEffect(() => {
+    if (!data) return;
     const personaPairs = findDuplicatePairs(data.personas, []);
     if (personaPairs.length > 0) {
       setDupPairs(personaPairs);
       // Auto-create a task on each persona in the pair if not already there
       setData(d => {
+        if (!d) return d;
         let tasks = { ...d.tasks };
         personaPairs.forEach(pair => {
           const pA = d.personas.find(p => p.id === pair.idA);
@@ -326,7 +477,7 @@ const App = () => {
       const entPairs = window.findEntityDuplicatePairs(data.entities, []);
       if (entPairs.length > 0) setEntityDupPairs(entPairs);
     }
-  }, []); // run once on mount
+  }, [data && data.personas && data.personas.length > 0]); // run once when data loads
 
   const [routeHistory, setRouteHistory] = useState([]);
 
@@ -346,17 +497,17 @@ const App = () => {
     window.scrollTo({ top: 0 });
   };
 
-  const allTasksFlat = Object.values(data.tasks).flat();
+  const allTasksFlat = data ? Object.values(data.tasks).flat() : [];
   const pendingTasks = allTasksFlat.filter(t => !t.done).length;
   const overdueCount = allTasksFlat.filter(t => t.due && !t.done && t.due < new Date().toISOString().slice(0, 10)).length;
-  const completedGoals = (data.goals || []).filter(g => {
+  const completedGoals = data ? (data.goals || []).filter(g => {
     if (g.archived) return false;
     const GOAL_METRICS = window.GOAL_METRICS || [];
     const metric = GOAL_METRICS.find(m => m.id === g.metric);
     return metric && metric.compute(data) >= g.target;
-  }).length;
+  }).length : 0;
   const totalDups = dupPairs.filter(p => !p.dismissed).length + entityDupPairs.filter(p => !p.dismissed).length;
-  const counts = { personas: data.personas.length, entities: data.entities.length, dups: totalDups, pendingTasks: pendingTasks || null, overdueCount, projects: (data.projects || []).length || null, completedGoals: completedGoals || null };
+  const counts = data ? { personas: data.personas.length, entities: data.entities.length, dups: totalDups, pendingTasks: pendingTasks || null, overdueCount, projects: (data.projects || []).length || null, completedGoals: completedGoals || null } : {};
 
   const addComment = (targetId, text) => {
     setData(d => {
@@ -752,6 +903,53 @@ const App = () => {
     return <AuthScreen onLogin={(email) => { setUserEmail(email); }} />;
   }
 
+  // Session valid but sessionStorage key missing (page reload after tab close)
+  if (needsUnlock) {
+    return <UnlockScreen
+      email={userEmail}
+      onUnlock={async () => {
+        const key = await window.CryptoUtils.loadSessionKey();
+        setCryptoKey(key);
+        setNeedsUnlock(false);
+        setDataReady(false);
+        // Trigger re-init of data by toggling userEmail briefly isn't needed;
+        // instead reload data directly
+        try {
+          const enc = localStorage.getItem("promeza_data_enc");
+          if (enc && key) {
+            const json = await window.CryptoUtils.decrypt(enc, key);
+            const parsed = JSON.parse(json);
+            setData(processLoadedData(parsed));
+          } else {
+            const old = localStorage.getItem("promeza_data");
+            if (old && key) {
+              const parsed = JSON.parse(old);
+              setData(processLoadedData(parsed));
+              localStorage.removeItem("promeza_data");
+            } else {
+              setData(freshData());
+            }
+          }
+        } catch (err) {
+          console.error("Unlock data load error:", err);
+          setData(freshData());
+        }
+        setDataReady(true);
+      }}
+      onLogout={() => { clearSession(); sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY || "promeza_sk"); setUserEmail(null); }}
+    />;
+  }
+
+  // Loading encrypted data
+  if (!dataReady || !data) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", flexDirection: "column", gap: 12, color: "var(--ink-3)", fontSize: 13 }}>
+        <div style={{ width: 32, height: 32, border: "3px solid var(--accent)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+        Cargando datos seguros…
+      </div>
+    );
+  }
+
   let view;
   switch (route.name) {
     case "home": view = <Home t={t} lang={lang} data={data} go={go} />; break;
@@ -821,9 +1019,9 @@ const App = () => {
       )}
       {modal === "settings" && (
         <SettingsModal
-          t={t} lang={lang} data={data}
+          t={t} lang={lang} data={data} cryptoKey={cryptoKey}
           onClose={() => setModal(null)}
-          onLogout={() => setUserEmail(null)}
+          onLogout={() => { clearSession(); sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY || "promeza_sk"); setUserEmail(null); }}
         />
       )}
       {modal === "edit-person" && editingId && (() => {

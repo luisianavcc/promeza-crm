@@ -1251,3 +1251,7 @@ button { font-family: inherit; }
   .page-title { font-size: 18px !important; }
   .topbar .search { display: none; }
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
