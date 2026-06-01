@@ -21,6 +21,12 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
   const [secMsg, setSecMsg] = useState(null); // { type: "ok"|"err", text }
   const [secLoading, setSecLoading] = useState(false);
 
+  // TOTP setup state
+  const [totpEnabled, setTotpEnabled] = useState(!!localStorage.getItem(window.CryptoUtils.TOTP_KEY));
+  const [totpSetup, setTotpSetup] = useState(null); // null | { secret, qrUrl }
+  const [totpVerifyCode, setTotpVerifyCode] = useState("");
+  const [totpLoading, setTotpLoading] = useState(false);
+
   const st = t.settings || {};
   const tabs = [
     { id: "airtable", label: "Airtable" },
@@ -167,16 +173,114 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
           {/* ─── Security ─── */}
           {tab === "security" && (
             <div>
-              <div style={{ background: "var(--bg-soft)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-700)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-                </svg>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Datos cifrados con AES-256</div>
-                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Auto-cierre: 1 hora de inactividad</div>
+              {/* Status badges */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+                <div style={{ background: "var(--bg-soft)", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 160 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-700)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>AES-256 activo</div>
+                    <div style={{ fontSize: 11, color: "var(--ink-3)" }}>Datos cifrados</div>
+                  </div>
+                </div>
+                <div style={{ background: totpEnabled ? "#f0fdf4" : "var(--bg-soft)", border: totpEnabled ? "1px solid #bbf7d0" : "1px solid transparent", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 160 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={totpEnabled ? "#16a34a" : "var(--ink-3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: totpEnabled ? "#166534" : "var(--ink-2)" }}>2FA {totpEnabled ? "activo" : "inactivo"}</div>
+                    <div style={{ fontSize: 11, color: totpEnabled ? "#16a34a" : "var(--ink-4)" }}>Microsoft Authenticator</div>
+                  </div>
                 </div>
               </div>
 
+              {/* ── TOTP section ── */}
+              <div style={{ borderBottom: "1px solid var(--line)", paddingBottom: 20, marginBottom: 20 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Autenticador en dos pasos (2FA)</div>
+                <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 14 }}>
+                  Cada vez que inicies sesión necesitarás tu contraseña + un código de 6 dígitos de Microsoft Authenticator.
+                </div>
+
+                {!totpEnabled && !totpSetup && (
+                  <button className="btn btn-primary" onClick={async () => {
+                    setTotpLoading(true);
+                    try {
+                      const secret = window.CryptoUtils.generateTOTPSecret();
+                      const otpauth = `otpauth://totp/PROMEZA%20CRM:Promeza?secret=${secret}&issuer=PROMEZA%20CRM&digits=6&period=30`;
+                      const qrUrl = await QRCode.toDataURL(otpauth, { width: 200, margin: 2, color: { dark: "#0f172a", light: "#ffffff" } });
+                      setTotpSetup({ secret, qrUrl });
+                    } catch (err) {
+                      setSecMsg({ type: "err", text: "Error generando QR: " + err.message });
+                    }
+                    setTotpLoading(false);
+                  }} disabled={totpLoading}>
+                    {totpLoading ? "Generando…" : "Activar autenticador →"}
+                  </button>
+                )}
+
+                {totpSetup && (
+                  <div>
+                    <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>
+                      <strong>Paso 1.</strong> Abre <strong>Microsoft Authenticator</strong> → + → <em>Cuenta de trabajo o escuela</em> → Escanea el código QR.
+                    </div>
+                    <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
+                      <img src={totpSetup.qrUrl} alt="QR TOTP" style={{ width: 160, height: 160, borderRadius: 8, border: "1px solid var(--line)" }} />
+                      <div style={{ flex: 1, minWidth: 140 }}>
+                        <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>¿No puedes escanear? Ingresa manualmente:</div>
+                        <code style={{ fontSize: 11, background: "var(--bg-soft)", padding: "6px 10px", borderRadius: 6, display: "block", wordBreak: "break-all", letterSpacing: "0.08em" }}>{totpSetup.secret}</code>
+                        <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 6 }}>Cuenta: PROMEZA CRM · Tipo: Tiempo (TOTP)</div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: 13, marginBottom: 10 }}>
+                      <strong>Paso 2.</strong> Ingresa el código de 6 dígitos que aparece en la app para confirmar.
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input
+                        type="text" inputMode="numeric" maxLength={6}
+                        value={totpVerifyCode}
+                        onChange={e => setTotpVerifyCode(e.target.value.replace(/\D/g, ""))}
+                        placeholder="000000"
+                        style={{ width: 120, letterSpacing: "0.3em", fontSize: 18, textAlign: "center", fontWeight: 700 }}
+                        disabled={totpLoading}
+                      />
+                      <button className="btn btn-primary" disabled={totpLoading || totpVerifyCode.length !== 6} onClick={async () => {
+                        setTotpLoading(true);
+                        try {
+                          const valid = await window.CryptoUtils.verifyTOTP(totpSetup.secret, totpVerifyCode);
+                          if (!valid) { setSecMsg({ type: "err", text: "Código incorrecto. Intenta de nuevo." }); setTotpLoading(false); return; }
+                          const enc = await window.CryptoUtils.encrypt(totpSetup.secret, cryptoKey);
+                          localStorage.setItem(window.CryptoUtils.TOTP_KEY, enc);
+                          setTotpEnabled(true);
+                          setTotpSetup(null);
+                          setTotpVerifyCode("");
+                          setSecMsg({ type: "ok", text: "Autenticador activado. A partir de ahora necesitarás el código en cada inicio de sesión." });
+                        } catch (err) {
+                          setSecMsg({ type: "err", text: "Error al activar: " + err.message });
+                        }
+                        setTotpLoading(false);
+                      }}>
+                        {totpLoading ? "Verificando…" : "Confirmar"}
+                      </button>
+                      <button className="btn" onClick={() => { setTotpSetup(null); setTotpVerifyCode(""); }} disabled={totpLoading}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {totpEnabled && (
+                  <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
+                    onClick={() => {
+                      if (confirm("¿Desactivar el autenticador de dos pasos? Solo tu contraseña protegerá el acceso.")) {
+                        localStorage.removeItem(window.CryptoUtils.TOTP_KEY);
+                        setTotpEnabled(false);
+                        setSecMsg({ type: "ok", text: "Autenticador desactivado." });
+                      }
+                    }}>
+                    Desactivar autenticador
+                  </button>
+                )}
+              </div>
+
+              {/* ── Change password ── */}
               <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Cambiar contraseña</div>
               <div className="field" style={{ marginBottom: 10 }}>
                 <label>Contraseña actual</label>
