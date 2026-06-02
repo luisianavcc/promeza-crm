@@ -9,47 +9,29 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
     try { return JSON.parse(localStorage.getItem("promeza_ejs")) || {}; } catch { return {}; }
   });
   const [atCfg, setAtCfg] = useState(() => window.AIRTABLE.getConfig());
+  const [msalCfg, setMsalCfg] = useState(() => window.CryptoUtils.getMSALConfig());
   const [syncStatus, setSyncStatus] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [tab, setTab] = useState("airtable");
-
-  // Security tab state
-  const [curPass, setCurPass] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
-  const [secMsg, setSecMsg] = useState(null); // { type: "ok"|"err", text }
-  const [secLoading, setSecLoading] = useState(false);
-
-  // TOTP setup state
-  const [totpEnabled, setTotpEnabled] = useState(!!localStorage.getItem(window.CryptoUtils.TOTP_KEY));
-  const [totpSetup, setTotpSetup] = useState(null); // null | { secret, qrUrl }
-  const [totpVerifyCode, setTotpVerifyCode] = useState("");
-  const [totpLoading, setTotpLoading] = useState(false);
+  const [msalSaved, setMsalSaved] = useState(false);
+  const [tab, setTab] = useState("microsoft");
+  const [secMsg, setSecMsg] = useState(null);
 
   const st = t.settings || {};
   const tabs = [
+    { id: "microsoft", label: "Microsoft" },
     { id: "airtable", label: "Airtable" },
     { id: "emailjs", label: "EmailJS" },
-    { id: "security", label: "Seguridad" },
     { id: "account", label: lang === "es" ? "Cuenta" : "Account" },
   ];
 
-  const doChangePassword = async () => {
-    setSecMsg(null);
-    if (!curPass || !newPass || !confirmPass) { setSecMsg({ type: "err", text: "Completa todos los campos." }); return; }
-    if (newPass !== confirmPass) { setSecMsg({ type: "err", text: "Las contraseñas nuevas no coinciden." }); return; }
-    if (newPass.length < 8) { setSecMsg({ type: "err", text: "La contraseña debe tener al menos 8 caracteres." }); return; }
-    setSecLoading(true);
-    try {
-      const result = await window.CryptoUtils.changePassword(curPass, newPass, data);
-      if (result.error) { setSecMsg({ type: "err", text: result.error }); }
-      else { setSecMsg({ type: "ok", text: "Contraseña cambiada correctamente." }); setCurPass(""); setNewPass(""); setConfirmPass(""); }
-    } catch (err) {
-      setSecMsg({ type: "err", text: "Error al cambiar contraseña: " + err.message });
-    }
-    setSecLoading(false);
+  const saveMSALConfig = () => {
+    localStorage.setItem(window.CryptoUtils.MSAL_CONFIG_KEY, JSON.stringify(msalCfg));
+    setMsalSaved(true);
+    setTimeout(() => setMsalSaved(false), 2500);
   };
+
+  const doChangePassword = async () => {};
 
   const saveAll = () => {
     localStorage.setItem("promeza_ejs", JSON.stringify(ejsCfg));
@@ -170,147 +152,72 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
             </div>
           )}
 
-          {/* ─── Security ─── */}
-          {tab === "security" && (
+          {/* ─── Microsoft ─── */}
+          {tab === "microsoft" && (
             <div>
-              {/* Status badges */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-                <div style={{ background: "var(--bg-soft)", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 160 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-700)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>AES-256 activo</div>
-                    <div style={{ fontSize: 11, color: "var(--ink-3)" }}>Datos cifrados</div>
-                  </div>
-                </div>
-                <div style={{ background: totpEnabled ? "#f0fdf4" : "var(--bg-soft)", border: totpEnabled ? "1px solid #bbf7d0" : "1px solid transparent", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 160 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={totpEnabled ? "#16a34a" : "var(--ink-3)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: totpEnabled ? "#166534" : "var(--ink-2)" }}>2FA {totpEnabled ? "activo" : "inactivo"}</div>
-                    <div style={{ fontSize: 11, color: totpEnabled ? "#16a34a" : "var(--ink-4)" }}>Microsoft Authenticator</div>
-                  </div>
-                </div>
+              <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-100)", borderRadius: 8, padding: "12px 16px", marginBottom: 18, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.7 }}>
+                <strong>Instrucciones en Azure Portal (portal.azure.com):</strong>
+                <ol style={{ margin: "8px 0 0 16px", padding: 0 }}>
+                  <li>Registros de aplicaciones → <strong>+ Nuevo registro</strong></li>
+                  <li>Tipos de cuenta: <em>Solo esta organización</em></li>
+                  <li>URI de redireccionamiento: tipo <strong>SPA</strong> → pega la URL de la app<br/>
+                    <code style={{ fontSize: 11, background: "var(--accent-100)", padding: "2px 6px", borderRadius: 4, wordBreak: "break-all" }}>{window.location.origin + window.location.pathname}</code>
+                  </li>
+                  <li>Copia el <strong>Id. de aplicación (cliente)</strong> y el <strong>Id. de directorio (inquilino)</strong></li>
+                </ol>
               </div>
 
-              {/* ── TOTP section ── */}
-              <div style={{ borderBottom: "1px solid var(--line)", paddingBottom: 20, marginBottom: 20 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Autenticador en dos pasos (2FA)</div>
-                <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 14 }}>
-                  Cada vez que inicies sesión necesitarás tu contraseña + un código de 6 dígitos de Microsoft Authenticator.
-                </div>
-
-                {!totpEnabled && !totpSetup && (
-                  <button className="btn btn-primary" onClick={async () => {
-                    setTotpLoading(true);
-                    try {
-                      const secret = window.CryptoUtils.generateTOTPSecret();
-                      const otpauth = `otpauth://totp/PROMEZA%20CRM:Promeza?secret=${secret}&issuer=PROMEZA%20CRM&digits=6&period=30`;
-                      const qrUrl = await QRCode.toDataURL(otpauth, { width: 200, margin: 2, color: { dark: "#0f172a", light: "#ffffff" } });
-                      setTotpSetup({ secret, qrUrl });
-                    } catch (err) {
-                      setSecMsg({ type: "err", text: "Error generando QR: " + err.message });
-                    }
-                    setTotpLoading(false);
-                  }} disabled={totpLoading}>
-                    {totpLoading ? "Generando…" : "Activar autenticador →"}
-                  </button>
-                )}
-
-                {totpSetup && (
-                  <div>
-                    <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>
-                      <strong>Paso 1.</strong> Abre <strong>Microsoft Authenticator</strong> → + → <em>Cuenta de trabajo o escuela</em> → Escanea el código QR.
-                    </div>
-                    <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap", marginBottom: 16 }}>
-                      <img src={totpSetup.qrUrl} alt="QR TOTP" style={{ width: 160, height: 160, borderRadius: 8, border: "1px solid var(--line)" }} />
-                      <div style={{ flex: 1, minWidth: 140 }}>
-                        <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>¿No puedes escanear? Ingresa manualmente:</div>
-                        <code style={{ fontSize: 11, background: "var(--bg-soft)", padding: "6px 10px", borderRadius: 6, display: "block", wordBreak: "break-all", letterSpacing: "0.08em" }}>{totpSetup.secret}</code>
-                        <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 6 }}>Cuenta: PROMEZA CRM · Tipo: Tiempo (TOTP)</div>
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: 13, marginBottom: 10 }}>
-                      <strong>Paso 2.</strong> Ingresa el código de 6 dígitos que aparece en la app para confirmar.
-                    </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input
-                        type="text" inputMode="numeric" maxLength={6}
-                        value={totpVerifyCode}
-                        onChange={e => setTotpVerifyCode(e.target.value.replace(/\D/g, ""))}
-                        placeholder="000000"
-                        style={{ width: 120, letterSpacing: "0.3em", fontSize: 18, textAlign: "center", fontWeight: 700 }}
-                        disabled={totpLoading}
-                      />
-                      <button className="btn btn-primary" disabled={totpLoading || totpVerifyCode.length !== 6} onClick={async () => {
-                        setTotpLoading(true);
-                        try {
-                          const valid = await window.CryptoUtils.verifyTOTP(totpSetup.secret, totpVerifyCode);
-                          if (!valid) { setSecMsg({ type: "err", text: "Código incorrecto. Intenta de nuevo." }); setTotpLoading(false); return; }
-                          const enc = await window.CryptoUtils.encrypt(totpSetup.secret, cryptoKey);
-                          localStorage.setItem(window.CryptoUtils.TOTP_KEY, enc);
-                          setTotpEnabled(true);
-                          setTotpSetup(null);
-                          setTotpVerifyCode("");
-                          setSecMsg({ type: "ok", text: "Autenticador activado. A partir de ahora necesitarás el código en cada inicio de sesión." });
-                        } catch (err) {
-                          setSecMsg({ type: "err", text: "Error al activar: " + err.message });
-                        }
-                        setTotpLoading(false);
-                      }}>
-                        {totpLoading ? "Verificando…" : "Confirmar"}
-                      </button>
-                      <button className="btn" onClick={() => { setTotpSetup(null); setTotpVerifyCode(""); }} disabled={totpLoading}>
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {totpEnabled && (
-                  <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
-                    onClick={() => {
-                      if (confirm("¿Desactivar el autenticador de dos pasos? Solo tu contraseña protegerá el acceso.")) {
-                        localStorage.removeItem(window.CryptoUtils.TOTP_KEY);
-                        setTotpEnabled(false);
-                        setSecMsg({ type: "ok", text: "Autenticador desactivado." });
-                      }
-                    }}>
-                    Desactivar autenticador
-                  </button>
-                )}
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label>Id. de aplicación (Client ID)</label>
+                <input type="text" value={msalCfg.clientId || ""} onChange={e => setMsalCfg(c => ({ ...c, clientId: e.target.value.trim() }))}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
               </div>
-
-              {/* ── Change password ── */}
-              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Cambiar contraseña</div>
-              <div className="field" style={{ marginBottom: 10 }}>
-                <label>Contraseña actual</label>
-                <input type="password" value={curPass} onChange={e => setCurPass(e.target.value)} placeholder="Contraseña actual" disabled={secLoading} />
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label>Id. de directorio (Tenant ID)</label>
+                <input type="text" value={msalCfg.tenantId || ""} onChange={e => setMsalCfg(c => ({ ...c, tenantId: e.target.value.trim() }))}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
               </div>
-              <div className="field" style={{ marginBottom: 10 }}>
-                <label>Nueva contraseña</label>
-                <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Nueva contraseña (mín. 8 caracteres)" disabled={secLoading} />
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label style={{ display: "flex", justifyContent: "space-between" }}>
+                  Correos autorizados
+                  <span style={{ fontWeight: 400, color: "var(--ink-4)", fontSize: 11 }}>vacío = cualquier @promeza.com</span>
+                </label>
+                <textarea value={msalCfg.authorizedEmails || ""} onChange={e => setMsalCfg(c => ({ ...c, authorizedEmails: e.target.value }))}
+                  placeholder={"betty@promeza.com, vanessa@promeza.com"}
+                  rows={3}
+                  style={{ width: "100%", resize: "vertical", fontFamily: "var(--font-mono)", fontSize: 12, padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 6, background: "var(--bg)", color: "var(--ink-1)" }} />
+                <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3 }}>Separa con comas. Si está vacío, se permite cualquier cuenta @promeza.com.</div>
               </div>
-              <div className="field" style={{ marginBottom: 14 }}>
-                <label>Confirmar nueva contraseña</label>
-                <input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="Repite la nueva contraseña" disabled={secLoading} />
+              <div className="field" style={{ marginBottom: 16 }}>
+                <label style={{ display: "flex", justifyContent: "space-between" }}>
+                  Clave adicional de cifrado
+                  <span style={{ fontWeight: 400, color: "var(--ink-4)", fontSize: 11 }}>opcional, recomendada</span>
+                </label>
+                <input type="password" value={msalCfg.extraKey || ""} onChange={e => setMsalCfg(c => ({ ...c, extraKey: e.target.value }))}
+                  placeholder="Ej: promeza2026seguro"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
+                <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3 }}>Frase extra que refuerza el cifrado AES de los datos. Todos los usuarios autorizados deben usar la misma.</div>
               </div>
 
               {secMsg && (
-                <div style={{
-                  padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 12,
+                <div style={{ padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 12,
                   background: secMsg.type === "ok" ? "#f0fdf4" : "#fff5f5",
                   color: secMsg.type === "ok" ? "#166534" : "#991b1b",
-                  border: "1px solid " + (secMsg.type === "ok" ? "#bbf7d0" : "#fecaca"),
-                }}>
+                  border: "1px solid " + (secMsg.type === "ok" ? "#bbf7d0" : "#fecaca") }}>
                   {secMsg.text}
                 </div>
               )}
 
-              <button className="btn btn-primary" onClick={doChangePassword} disabled={secLoading}>
-                {secLoading ? "Guardando…" : "Cambiar contraseña"}
+              <button className="btn btn-primary" onClick={saveMSALConfig}>
+                {msalSaved ? "✓ Guardado" : "Guardar configuración"}
               </button>
 
-              <div style={{ marginTop: 20, borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+              <div style={{ marginTop: 20, borderTop: "1px solid var(--line)", paddingTop: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ fontSize: 12, color: "var(--ink-3)", flex: 1 }}>
+                  <strong>Cifrado:</strong> AES-256 activo · <strong>Sesión:</strong> 30 días · <strong>Inactividad:</strong> 1 hora
+                </div>
                 <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
                   onClick={() => {
                     if (confirm("¿Cerrar esta sesión?")) {
@@ -319,11 +226,12 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
                       onLogout();
                     }
                   }}>
-                  <Icon name="log-out" /> Cerrar esta sesión
+                  <Icon name="log-out" /> Cerrar sesión
                 </button>
               </div>
             </div>
           )}
+
 
           {/* ─── Account ─── */}
           {tab === "account" && (
