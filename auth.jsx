@@ -251,6 +251,12 @@ const UnlockScreen = ({ email, onUnlock, onLogout }) => {
 
   const displayName = email || "usuario";
   const msalCfg = getMSALConfig();
+  const isConfigured = !!(msalCfg.clientId && msalCfg.tenantId);
+
+  // If MSAL not configured yet, clear stale session and go back to login/setup
+  React.useEffect(() => {
+    if (!isConfigured) { clearSession(); onLogout(); }
+  }, []);
 
   const doReauth = async () => {
     setLoading(true);
