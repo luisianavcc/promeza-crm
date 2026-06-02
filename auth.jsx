@@ -1,26 +1,36 @@
-// PROMEZA CRM — Authentication with AES-256 crypto
+// PROMEZA CRM — Authentication via Microsoft Entra ID (Azure AD)
+
+// ─── Default MSAL config (pre-configured for promeza.com) ───
+
+const DEFAULT_MSAL_CONFIG = {
+  clientId: "20bf3e17-00ad-4316-ae9e-8a06ccb2d0bf",
+  tenantId: "6477fab5-91da-4cc6-b4ea-ce35db0d6c51",
+  authorizedEmails: "",
+  extraKey: "",
+};
 
 // ─── Crypto utilities ───
 
-const PASS_HASH_KEY  = "promeza_pass_hash";
-const PASS_HASH_SALT = "promeza-crm-v1";
 const SESSION_CRYPTO_KEY = "promeza_sk";
+const MSAL_CONFIG_KEY    = "promeza_msal_cfg";
+const PASS_HASH_KEY      = "promeza_pass_hash";
+const PASS_HASH_SALT     = "promeza-crm-v1";
 
 const sha256 = async (str) => {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 };
 
-const deriveAESKey = async (password) => {
-  const km = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+const deriveSharedKey = async (clientId, tenantId, extraKey = "") => {
+  const material = [clientId, tenantId, extraKey.trim(), "promeza-v1"].filter(Boolean).join(":");
+  const km = await crypto.subtle.importKey("raw", new TextEncoder().encode(material), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: new TextEncoder().encode("promeza-salt-2026"), iterations: 100000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: new TextEncoder().encode("promeza-shared-2026"), iterations: 100000, hash: "SHA-256" },
     km, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
   );
 };
 
-const storeSessionKey = async (password) => {
-  const key = await deriveAESKey(password);
+const storeSessionKey = async (key) => {
   const raw = await crypto.subtle.exportKey("raw", key);
   sessionStorage.setItem(SESSION_CRYPTO_KEY, btoa(String.fromCharCode(...new Uint8Array(raw))));
 };
@@ -34,10 +44,31 @@ const loadSessionKey = async () => {
   } catch { return null; }
 };
 
+const getMSALConfig = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(MSAL_CONFIG_KEY)) || {};
+    return { ...DEFAULT_MSAL_CONFIG, ...stored };
+  } catch { return { ...DEFAULT_MSAL_CONFIG }; }
+};
+
+const buildMSALInstance = (cfg) => {
+  if (!cfg.clientId || !cfg.tenantId) return null;
+  try {
+    return new msal.PublicClientApplication({
+      auth: {
+        clientId: cfg.clientId,
+        authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
+        redirectUri: window.location.origin + window.location.pathname,
+      },
+      cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false },
+    });
+  } catch { return null; }
+};
+
 window.CryptoUtils = {
-  sha256, deriveAESKey, storeSessionKey, loadSessionKey,
-  PASS_HASH_KEY, PASS_HASH_SALT, SESSION_CRYPTO_KEY,
-  getMSALConfig: () => ({}),
+  sha256, deriveSharedKey, storeSessionKey, loadSessionKey,
+  getMSALConfig, buildMSALInstance,
+  SESSION_CRYPTO_KEY, MSAL_CONFIG_KEY, PASS_HASH_KEY, PASS_HASH_SALT,
 
   encrypt: async (str, key) => {
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -53,28 +84,12 @@ window.CryptoUtils = {
     const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
     return new TextDecoder().decode(dec);
   },
-
-  changePassword: async (currentPass, newPass, data) => {
-    const curHash = await sha256(PASS_HASH_SALT + ":" + currentPass);
-    const stored = localStorage.getItem(PASS_HASH_KEY);
-    if (curHash !== stored) return { error: "Contraseña actual incorrecta" };
-    const newHash = await sha256(PASS_HASH_SALT + ":" + newPass);
-    localStorage.setItem(PASS_HASH_KEY, newHash);
-    await storeSessionKey(newPass);
-    const newKey = await loadSessionKey();
-    const enc = await window.CryptoUtils.encrypt(JSON.stringify(data), newKey);
-    localStorage.setItem("promeza_data_enc", enc);
-    return { key: newKey };
-  },
 };
 
 // ─── Session management ───
 
 const SESSION_KEY = "promeza_session";
 const SESSION_DURATION = 30 * 24 * 60 * 60 * 1000;
-
-const DEMO_USER = "Promeza";
-const DEFAULT_PASSWORD = "@Promeza!:2026";
 
 const getSession = () => {
   try {
@@ -88,7 +103,7 @@ const saveSession = (user) => {
 };
 const clearSession = () => localStorage.removeItem(SESSION_KEY);
 
-// ─── Shared brand logo ───
+// ─── Brand logo ───
 
 const AuthBrand = () => (
   <div className="auth-brand">
@@ -107,84 +122,82 @@ const AuthBrand = () => (
   </div>
 );
 
+const MicrosoftLogo = () => (
+  <svg width="18" height="18" viewBox="0 0 21 21" fill="none" style={{ flexShrink: 0 }}>
+    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+  </svg>
+);
+
 // ─── AuthScreen ───
 
 const AuthScreen = ({ onLogin }) => {
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
 
-  const doLogin = async () => {
-    setError("");
-    if (!username.trim()) { setError("Ingresa el usuario."); return; }
-    if (!password) { setError("Ingresa la contraseña."); return; }
-
-    if (username.trim().toLowerCase() !== DEMO_USER.toLowerCase()) {
-      setError("Usuario o contraseña incorrectos."); return;
-    }
-
+  const doMicrosoftLogin = async () => {
     setLoading(true);
+    setError("");
     try {
-      let storedHash = localStorage.getItem(PASS_HASH_KEY);
-      if (!storedHash) {
-        storedHash = await sha256(PASS_HASH_SALT + ":" + DEFAULT_PASSWORD);
-        localStorage.setItem(PASS_HASH_KEY, storedHash);
-      }
+      const cfg = getMSALConfig();
+      const msalInstance = buildMSALInstance(cfg);
+      if (!msalInstance) { setError("Error de configuración."); setLoading(false); return; }
 
-      const inputHash = await sha256(PASS_HASH_SALT + ":" + password);
-      if (inputHash !== storedHash) {
-        setError("Usuario o contraseña incorrectos.");
+      const response = await msalInstance.loginPopup({
+        scopes: ["User.Read", "openid", "profile", "email"],
+        prompt: "select_account",
+      });
+
+      const email = (response.account?.username || "").toLowerCase();
+      if (!email) { setError("No se pudo obtener el correo."); setLoading(false); return; }
+
+      if (!email.endsWith("@promeza.com")) {
+        setError("Solo se permiten cuentas @promeza.com.");
         setLoading(false);
         return;
       }
 
-      await storeSessionKey(password);
-      saveSession(DEMO_USER);
-      onLogin(DEMO_USER);
+      const authorized = (cfg.authorizedEmails || "")
+        .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
+      if (authorized.length > 0 && !authorized.includes(email)) {
+        setError("Esta cuenta no está autorizada. Contacta al administrador.");
+        setLoading(false);
+        return;
+      }
+
+      const key = await deriveSharedKey(cfg.clientId, cfg.tenantId, cfg.extraKey || "");
+      await storeSessionKey(key);
+      saveSession(email);
+      onLogin(email);
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Error de autenticación. Intenta de nuevo.");
+      if (!err.errorCode?.includes("cancelled") && !err.message?.includes("cancelled")) {
+        setError("Error al iniciar sesión: " + (err.message || err.errorCode || "Inténtalo de nuevo."));
+      }
     }
     setLoading(false);
   };
-
-  const onKey = (e) => { if (e.key === "Enter") doLogin(); };
 
   return (
     <div className="auth-veil">
       <div className="auth-card">
         <AuthBrand />
         <div className="auth-title">Bienvenido</div>
-        <div className="auth-sub">Ingresa tus credenciales para acceder</div>
-
-        <div className="field" style={{ marginBottom: 14 }}>
-          <label htmlFor="auth-user">Usuario</label>
-          <input id="auth-user" type="text" autoComplete="username"
-            value={username} onChange={e => { setUsername(e.target.value); setError(""); }}
-            placeholder="Promeza" autoFocus onKeyDown={onKey} disabled={loading} />
+        <div className="auth-sub" style={{ marginBottom: 24 }}>
+          Inicia sesión con tu cuenta <strong>@promeza.com</strong>
         </div>
 
-        <div className="field" style={{ marginBottom: 14 }}>
-          <label htmlFor="auth-pw" style={{ display: "flex", justifyContent: "space-between" }}>
-            Contraseña
-            <button type="button" onClick={() => setShowPw(s => !s)}
-              style={{ border: "none", background: "none", cursor: "pointer", fontSize: 11, color: "var(--ink-4)", fontFamily: "inherit", padding: 0 }}
-              disabled={loading}>
-              {showPw ? "Ocultar" : "Mostrar"}
-            </button>
-          </label>
-          <input id="auth-pw" type={showPw ? "text" : "password"} autoComplete="current-password"
-            value={password} onChange={e => { setPassword(e.target.value); setError(""); }}
-            placeholder="Contraseña" onKeyDown={onKey} disabled={loading} />
-        </div>
+        {error && <div className="auth-error" style={{ marginBottom: 14 }}><Icon name="alert" size={14} /> {error}</div>}
 
-        {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
-
-        <button className="btn btn-primary btn-block auth-submit" onClick={doLogin} disabled={loading}>
-          {loading ? "Verificando…" : "Continuar →"}
+        <button className="btn btn-primary btn-block auth-submit" onClick={doMicrosoftLogin} disabled={loading}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          {loading ? "Conectando…" : (<><MicrosoftLogo /> Iniciar sesión con Microsoft</>)}
         </button>
+
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--ink-4)" }}>
+          Si tienes Microsoft Authenticator activo,<br/>te pedirá el código automáticamente.
+        </div>
 
         <div className="auth-footer">PROMEZA CRM v1.0 · {new Date().getFullYear()}</div>
       </div>
@@ -195,62 +208,59 @@ const AuthScreen = ({ onLogin }) => {
 // ─── UnlockScreen ───
 
 const UnlockScreen = ({ email, onUnlock, onLogout }) => {
-  const [password, setPassword] = React.useState("");
-  const [error, setError] = React.useState("");
-  const [showPw, setShowPw] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
 
   const displayName = email || "usuario";
+  const cfg = getMSALConfig();
 
-  const doUnlock = async () => {
-    setError("");
-    if (!password) { setError("Ingresa tu contraseña."); return; }
+  const doReauth = async () => {
     setLoading(true);
+    setError("");
     try {
-      const storedHash = localStorage.getItem(PASS_HASH_KEY);
-      if (!storedHash) { setError("Error de sesión. Inicia sesión de nuevo."); setLoading(false); return; }
+      const msalInstance = buildMSALInstance(cfg);
+      if (!msalInstance) { setError("Error de configuración."); setLoading(false); return; }
 
-      const inputHash = await sha256(PASS_HASH_SALT + ":" + password);
-      if (inputHash !== storedHash) { setError("Contraseña incorrecta."); setLoading(false); return; }
+      let account = null;
+      try {
+        const r = await msalInstance.ssoSilent({ scopes: ["User.Read", "openid"], loginHint: email });
+        account = r.account;
+      } catch {
+        const r = await msalInstance.loginPopup({ scopes: ["User.Read", "openid"], loginHint: email });
+        account = r?.account;
+      }
 
-      await storeSessionKey(password);
+      if (!account || account.username.toLowerCase() !== email.toLowerCase()) {
+        setError("La cuenta no coincide con la sesión activa.");
+        setLoading(false);
+        return;
+      }
+
+      const key = await deriveSharedKey(cfg.clientId, cfg.tenantId, cfg.extraKey || "");
+      await storeSessionKey(key);
       onUnlock();
     } catch (err) {
-      console.error("Unlock error:", err);
-      setError("Error al desbloquear. Intenta de nuevo.");
+      if (!err.errorCode?.includes("cancelled") && !err.message?.includes("cancelled")) {
+        setError("Error al verificar: " + (err.message || err.errorCode));
+      }
     }
     setLoading(false);
   };
-
-  const onKey = (e) => { if (e.key === "Enter") doUnlock(); };
 
   return (
     <div className="auth-veil">
       <div className="auth-card">
         <AuthBrand />
         <div className="auth-title">Bienvenido de vuelta</div>
-        <div className="auth-sub" style={{ marginBottom: 20 }}>
-          Hola, <strong>{displayName}</strong>. Ingresa tu contraseña para continuar.
+        <div className="auth-sub" style={{ marginBottom: 24 }}>
+          Hola, <strong>{displayName}</strong>. Confirma tu identidad para continuar.
         </div>
 
-        <div className="field" style={{ marginBottom: 14 }}>
-          <label htmlFor="unlock-pw" style={{ display: "flex", justifyContent: "space-between" }}>
-            Contraseña
-            <button type="button" onClick={() => setShowPw(s => !s)}
-              style={{ border: "none", background: "none", cursor: "pointer", fontSize: 11, color: "var(--ink-4)", fontFamily: "inherit", padding: 0 }}
-              disabled={loading}>
-              {showPw ? "Ocultar" : "Mostrar"}
-            </button>
-          </label>
-          <input id="unlock-pw" type={showPw ? "text" : "password"} autoComplete="current-password"
-            value={password} onChange={e => { setPassword(e.target.value); setError(""); }}
-            placeholder="Contraseña" autoFocus onKeyDown={onKey} disabled={loading} />
-        </div>
+        {error && <div className="auth-error" style={{ marginBottom: 14 }}><Icon name="alert" size={14} /> {error}</div>}
 
-        {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
-
-        <button className="btn btn-primary btn-block auth-submit" onClick={doUnlock} disabled={loading}>
-          {loading ? "Verificando…" : "Desbloquear →"}
+        <button className="btn btn-primary btn-block auth-submit" onClick={doReauth} disabled={loading}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          {loading ? "Verificando…" : (<><MicrosoftLogo /> Continuar con Microsoft</>)}
         </button>
 
         <div style={{ textAlign: "center", marginTop: 16 }}>
