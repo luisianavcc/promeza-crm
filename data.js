@@ -1,0 +1,319 @@
+// PROMEZA CRM — Mock data
+// Personas y Entidades, mezcla internacional
+
+window.PROMEZA_DATA = (function () {
+  const entities = [
+    {
+      id: "e1", name: "Iglesia Centro de Fe", type: "iglesia",
+      email: "contacto@centrodefe.org", phone: "+1 305 555 0142",
+      address: "1240 SW 27th Ave", zip: "33135", city: "Miami", state: "FL", country: "USA",
+      lat: 25.7559, lng: -80.2389,
+      website: "centrodefe.org",
+      social: { ig: "@centrodefe", fb: "centrodefe", tiktok: "", x: "@centrodefe" },
+      size: 850, founded: "1998", parent: null,
+      tags: ["matriz", "hispana"],
+    },
+    {
+      id: "e2", name: "Centro de Fe — Sede Doral", type: "iglesia",
+      email: "doral@centrodefe.org", phone: "+1 305 555 0188",
+      address: "8455 NW 53rd St", zip: "33166", city: "Doral", state: "FL", country: "USA",
+      lat: 25.8112, lng: -80.3238,
+      website: "centrodefe.org/doral",
+      social: { ig: "@centrodefe.doral", fb: "centrodefedoral", tiktok: "", x: "" },
+      size: 220, founded: "2014", parent: "e1",
+      tags: ["filial"],
+    },
+    {
+      id: "e3", name: "Fundación Manos Abiertas", type: "ong",
+      email: "hola@manosabiertas.org", phone: "+52 55 4422 1180",
+      address: "Av. Reforma 222, Piso 4", zip: "06600", city: "Ciudad de México", state: "CDMX", country: "México",
+      lat: 19.4267, lng: -99.1676,
+      website: "manosabiertas.org",
+      social: { ig: "@manosabiertas", fb: "manosabiertasmx", tiktok: "@manosabiertas", x: "" },
+      size: 34, founded: "2009", parent: null,
+      tags: ["ong", "alcance social"],
+    },
+    {
+      id: "e4", name: "Colegio Bilingüe Esperanza", type: "escuela",
+      email: "info@cbesperanza.edu", phone: "+57 1 555 7720",
+      address: "Carrera 11 # 93-46", zip: "110221", city: "Bogotá", state: "Cundinamarca", country: "Colombia",
+      lat: 4.6760, lng: -74.0480,
+      website: "cbesperanza.edu",
+      social: { ig: "@cbesperanza", fb: "cbesperanza", tiktok: "", x: "" },
+      size: 612, founded: "1987", parent: null,
+      tags: ["educación", "k-12"],
+    },
+    {
+      id: "e5", name: "Universidad del Valle Norte", type: "universidad",
+      email: "rectoria@uvn.edu.ar", phone: "+54 11 4822 0011",
+      address: "Av. Santa Fe 2480", zip: "C1123", city: "Buenos Aires", state: "CABA", country: "Argentina",
+      lat: -34.5957, lng: -58.3950,
+      website: "uvn.edu.ar",
+      social: { ig: "@uvn.edu", fb: "uvnedu", tiktok: "", x: "@uvn_edu" },
+      size: 4800, founded: "1962", parent: null,
+      tags: ["educación superior"],
+    },
+    {
+      id: "e6", name: "Sinagoga Beit Shalom", type: "sinagoga",
+      email: "info@beitshalom.org.es", phone: "+34 91 555 3320",
+      address: "Calle Balmes 215", zip: "08006", city: "Barcelona", state: "Cataluña", country: "España",
+      lat: 41.3998, lng: 2.1525,
+      website: "beitshalom.org.es",
+      social: { ig: "@beitshalom.bcn", fb: "beitshalombcn", tiktok: "", x: "" },
+      size: 180, founded: "1976", parent: null,
+      tags: ["comunidad"],
+    },
+    {
+      id: "e7", name: "Sonido Promesa Studios", type: "estudio",
+      email: "book@sonidopromesa.com", phone: "+1 615 555 9034",
+      address: "1812 8th Ave S", zip: "37203", city: "Nashville", state: "TN", country: "USA",
+      lat: 36.1389, lng: -86.7886,
+      website: "sonidopromesa.com",
+      social: { ig: "@sonidopromesa", fb: "sonidopromesa", tiktok: "@sonidopromesa", x: "@sonidopromesa" },
+      size: 12, founded: "2018", parent: null,
+      tags: ["audio", "producción"],
+    },
+    {
+      id: "e8", name: "Promeza HQ", type: "oficina",
+      email: "team@promeza.app", phone: "+1 786 555 0001",
+      address: "1450 Brickell Ave, Suite 800", zip: "33131", city: "Miami", state: "FL", country: "USA",
+      lat: 25.7634, lng: -80.1916,
+      website: "promeza.app",
+      social: { ig: "@promeza", fb: "promeza", tiktok: "", x: "@promeza" },
+      size: 18, founded: "2023", parent: null,
+      tags: ["oficina central"],
+    },
+    {
+      id: "e9", name: "Iglesia Río de Vida", type: "iglesia",
+      email: "info@riodevida.do", phone: "+1 809 555 4412",
+      address: "Av. Winston Churchill 95", zip: "10148", city: "Santo Domingo", state: "Distrito Nacional", country: "República Dominicana",
+      lat: 18.4683, lng: -69.9418,
+      website: "riodevida.do",
+      social: { ig: "@riodevida.do", fb: "riodevidado", tiktok: "@riodevida", x: "" },
+      size: 540, founded: "2002", parent: null,
+      tags: ["caribe"],
+    },
+    {
+      id: "e10", name: "Casa de Adoración Lima", type: "iglesia",
+      email: "contacto@casaadoracion.pe", phone: "+51 1 555 8821",
+      address: "Av. Javier Prado Este 4200", zip: "15023", city: "Lima", state: "Lima", country: "Perú",
+      lat: -12.0908, lng: -76.9750,
+      website: "casaadoracion.pe",
+      social: { ig: "@casaadoracion.pe", fb: "casaadoracionlima", tiktok: "", x: "" },
+      size: 310, founded: "2007", parent: null,
+      tags: ["adoración"],
+    },
+    {
+      id: "e11", name: "Fundación Luz para Niños", type: "ong",
+      email: "info@luzparaniños.org", phone: "+593 2 555 1109",
+      address: "Av. Amazonas N34-451", zip: "170135", city: "Quito", state: "Pichincha", country: "Ecuador",
+      lat: -0.1807, lng: -78.4678,
+      website: "luzparaniños.org",
+      social: { ig: "@luzparaninos", fb: "luzparaninos", tiktok: "", x: "" },
+      size: 22, founded: "2015", parent: null,
+      tags: ["niñez", "educación"],
+    },
+    {
+      id: "e12", name: "Templo Emanuel", type: "iglesia",
+      email: "info@emanuel.cl", phone: "+56 2 555 6644",
+      address: "Av. Apoquindo 4500", zip: "7550000", city: "Santiago", state: "RM", country: "Chile",
+      lat: -33.4099, lng: -70.5763,
+      website: "emanuel.cl",
+      social: { ig: "@emanuel.cl", fb: "emanuelcl", tiktok: "", x: "" },
+      size: 410, founded: "1995", parent: null,
+      tags: ["histórica"],
+    },
+    {
+      id: "e13", name: "Iglesia Nueva Vida Ventura", type: "iglesia",
+      email: "info@nuevavidaventura.org", phone: "+1 805 555 2201",
+      address: "1450 E Thompson Blvd", zip: "93001", city: "Ventura", state: "CA", country: "USA",
+      county: "Condado de Ventura",
+      lat: 34.2746, lng: -119.2290,
+      website: "nuevavidaventura.org",
+      social: { ig: "@nuevavidaventura", fb: "nuevavidaventura", tiktok: "", x: "" },
+      size: 320, founded: "2003", parent: null,
+      tags: ["california", "ventura"],
+    },
+    {
+      id: "e14", name: "Centro Cristiano Los Ángeles", type: "iglesia",
+      email: "contacto@cclosangeles.org", phone: "+1 213 555 4410",
+      address: "2800 S Vermont Ave", zip: "90007", city: "Los Ángeles", state: "CA", country: "USA",
+      county: "Condado de Los Ángeles",
+      lat: 34.0194, lng: -118.2912,
+      website: "cclosangeles.org",
+      social: { ig: "@cclosangeles", fb: "cclosangeles", tiktok: "@ccla", x: "" },
+      size: 680, founded: "1998", parent: null,
+      tags: ["california", "la"],
+    },
+    {
+      id: "e15", name: "Iglesia Oasis Anaheim", type: "iglesia",
+      email: "hola@oasisanaheim.org", phone: "+1 714 555 8830",
+      address: "1200 W Lincoln Ave", zip: "92801", city: "Anaheim", state: "CA", country: "USA",
+      county: "Condado de Orange",
+      lat: 33.8353, lng: -117.9145,
+      website: "oasisanaheim.org",
+      social: { ig: "@oasisanaheim", fb: "oasisanaheim", tiktok: "", x: "" },
+      size: 210, founded: "2010", parent: null,
+      tags: ["california", "orange county"],
+    },
+    {
+      id: "e16", name: "Roca Firme San Diego", type: "iglesia",
+      email: "info@rocafirme.org", phone: "+1 619 555 7720",
+      address: "3400 National Ave", zip: "92113", city: "San Diego", state: "CA", country: "USA",
+      county: "Condado de San Diego",
+      lat: 32.7157, lng: -117.1611,
+      website: "rocafirme.org",
+      social: { ig: "@rocafirmesd", fb: "rocafirmesd", tiktok: "@rocafirmesd", x: "" },
+      size: 450, founded: "2001", parent: null,
+      tags: ["california", "san diego"],
+    },
+  ];
+
+  const palette = ["#4f46e5", "#0E7C66", "#B45309", "#7C3AED", "#BE185D", "#0369A1", "#059669", "#9F1239", "#6366f1", "#92400E"];
+
+  const personas = [
+    { id: "p1", first: "Marcos", last: "Rivera", role: "pastor", email: "marcos@centrodefe.org", phone: "+1 305 555 1101", address: "120 NW 27th Ave", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7600, lng: -80.2400, website: "marcosrivera.org", social: { ig: "@pastormarcos", fb: "pastormarcos", tiktok: "", x: "@pmarcos" }, entities: [{ id: "e1", role: "pastor" }], tags: ["liderazgo", "vip"], language: "es", status: "activo", birthday: "1972-04-12", lastContact: "2026-04-28" },
+    { id: "p2", first: "Lucía", last: "Hernández", role: "secretario", email: "lucia.h@centrodefe.org", phone: "+1 305 555 1102", address: "780 SW 22nd St", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7530, lng: -80.2360, website: "", social: { ig: "@lucia.h", fb: "", tiktok: "", x: "" }, entities: [{ id: "e1", role: "secretario" }], tags: ["staff"], language: "es", status: "activo", birthday: "1985-09-03", lastContact: "2026-05-02" },
+    { id: "p3", first: "David", last: "Quiñones", role: "adorador", email: "david.q@centrodefe.org", phone: "+1 305 555 1103", address: "455 SW 15th Ave", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7610, lng: -80.2300, website: "", social: { ig: "@dquinones.music", fb: "", tiktok: "@dquinones", x: "" }, entities: [{ id: "e1", role: "adorador" }, { id: "e7", role: "otro", roleOther: "Productor invitado" }], tags: ["música"], language: "es", status: "activo", birthday: "1990-11-21", lastContact: "2026-04-19" },
+    { id: "p4", first: "Sofía", last: "Bermúdez", role: "tesorero", email: "sofia.b@centrodefe.org", phone: "+1 305 555 1104", address: "330 NW 32nd St", zip: "33127", city: "Miami", state: "FL", country: "USA", lat: 25.8000, lng: -80.2080, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e1", role: "tesorero" }], tags: [], language: "es", status: "activo", birthday: "1979-02-14", lastContact: "2026-04-30" },
+    { id: "p5", first: "Jorge", last: "Castillo", role: "ujiere", email: "jorge.c@centrodefe.org", phone: "+1 305 555 1105", address: "1700 SW 8th St", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7647, lng: -80.2270, website: "", social: { ig: "@jorgec", fb: "", tiktok: "", x: "" }, entities: [{ id: "e1", role: "ujiere" }], tags: [], language: "es", status: "activo", birthday: "1968-07-09", lastContact: "2026-03-15" },
+    { id: "p6", first: "Esteban", last: "Ortiz", role: "lider", email: "esteban.o@centrodefe.org", phone: "+1 305 555 1106", address: "8400 NW 53rd St", zip: "33166", city: "Doral", state: "FL", country: "USA", lat: 25.8120, lng: -80.3240, website: "", social: { ig: "@esteban.ortiz", fb: "", tiktok: "", x: "" }, entities: [{ id: "e2", role: "lider" }, { id: "e1", role: "miembro" }], tags: ["jóvenes"], language: "es", status: "activo", birthday: "1992-01-30", lastContact: "2026-05-04" },
+    { id: "p7", first: "Camila", last: "Mendoza", role: "lider", email: "camila.m@centrodefe.org", phone: "+1 305 555 1107", address: "8330 NW 56th St", zip: "33166", city: "Doral", state: "FL", country: "USA", lat: 25.8125, lng: -80.3210, website: "", social: { ig: "@camila.m", fb: "", tiktok: "@camilam", x: "" }, entities: [{ id: "e2", role: "lider" }], tags: ["mujeres"], language: "es", status: "activo", birthday: "1988-12-05", lastContact: "2026-04-22" },
+    { id: "p8", first: "Ana", last: "Vega", role: "otro", roleOther: "Directora ejecutiva", email: "ana.v@manosabiertas.org", phone: "+52 55 4422 9001", address: "Av. Reforma 220, depto 5B", zip: "06600", city: "Ciudad de México", state: "CDMX", country: "México", lat: 19.4275, lng: -99.1670, website: "anavega.mx", social: { ig: "@anavega.mx", fb: "", tiktok: "", x: "@anavega" }, entities: [{ id: "e3", role: "otro", roleOther: "Directora ejecutiva" }], tags: ["liderazgo", "vip"], language: "es", status: "activo", birthday: "1981-06-18", lastContact: "2026-05-01" },
+    { id: "p9", first: "Roberto", last: "Salinas", role: "miembro", email: "roberto.s@manosabiertas.org", phone: "+52 55 4422 9002", address: "Calle Génova 14", zip: "06600", city: "Ciudad de México", state: "CDMX", country: "México", lat: 19.4283, lng: -99.1665, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e3", role: "miembro" }], tags: [], language: "es", status: "activo", birthday: "1995-03-22", lastContact: "2026-04-10" },
+    { id: "p10", first: "Mariana", last: "Pérez", role: "influencer", email: "mariana@marianaperez.com", phone: "+52 55 4422 9003", address: "Polanco V Sección", zip: "11550", city: "Ciudad de México", state: "CDMX", country: "México", lat: 19.4348, lng: -99.1953, website: "marianaperez.com", social: { ig: "@marianaperez", fb: "marianaperezmx", tiktok: "@marianaperez", x: "@marianap" }, entities: [{ id: "e3", role: "otro", roleOther: "Embajadora" }], tags: ["vip", "prensa"], language: "es", status: "activo", birthday: "1993-08-11", lastContact: "2026-04-29" },
+    { id: "p11", first: "Patricia", last: "Restrepo", role: "otro", roleOther: "Rectora", email: "rectoria@cbesperanza.edu", phone: "+57 1 555 7700", address: "Carrera 11 # 93-50", zip: "110221", city: "Bogotá", state: "Cundinamarca", country: "Colombia", lat: 4.6762, lng: -74.0479, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e4", role: "otro", roleOther: "Rectora" }], tags: ["liderazgo"], language: "es", status: "activo", birthday: "1970-10-08", lastContact: "2026-04-18" },
+    { id: "p12", first: "Felipe", last: "Gómez", role: "otro", roleOther: "Coordinador académico", email: "felipe.g@cbesperanza.edu", phone: "+57 1 555 7701", address: "Calle 94 # 11-30", zip: "110221", city: "Bogotá", state: "Cundinamarca", country: "Colombia", lat: 4.6770, lng: -74.0470, website: "", social: { ig: "@felipegomez", fb: "", tiktok: "", x: "" }, entities: [{ id: "e4", role: "otro", roleOther: "Coordinador" }], tags: [], language: "es", status: "activo", birthday: "1984-05-26", lastContact: "2026-03-30" },
+    { id: "p13", first: "Diego", last: "Fernández", role: "otro", roleOther: "Decano", email: "diego.f@uvn.edu.ar", phone: "+54 11 4822 1001", address: "Av. Santa Fe 2400", zip: "C1123", city: "Buenos Aires", state: "CABA", country: "Argentina", lat: -34.5950, lng: -58.3955, website: "", social: { ig: "", fb: "", tiktok: "", x: "@diegofuvn" }, entities: [{ id: "e5", role: "otro", roleOther: "Decano" }], tags: ["académico"], language: "es", status: "activo", birthday: "1965-12-01", lastContact: "2026-02-22" },
+    { id: "p14", first: "Valentina", last: "Acosta", role: "lider", email: "valentina.a@uvn.edu.ar", phone: "+54 11 4822 1002", address: "Av. Cabildo 1200", zip: "C1426", city: "Buenos Aires", state: "CABA", country: "Argentina", lat: -34.5640, lng: -58.4480, website: "", social: { ig: "@valeacosta", fb: "", tiktok: "@valeacosta", x: "" }, entities: [{ id: "e5", role: "otro", roleOther: "Líder estudiantil" }], tags: ["estudiantes"], language: "es", status: "activo", birthday: "2001-04-04", lastContact: "2026-04-25" },
+    { id: "p15", first: "Daniel", last: "Cohen", role: "otro", roleOther: "Rabino", email: "rabino@beitshalom.org.es", phone: "+34 91 555 3300", address: "Calle Balmes 210", zip: "08006", city: "Barcelona", state: "Cataluña", country: "España", lat: 41.4000, lng: 2.1530, website: "danielcohen.es", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e6", role: "otro", roleOther: "Rabino" }], tags: ["liderazgo"], language: "es", status: "activo", birthday: "1969-09-14", lastContact: "2026-03-10" },
+    { id: "p16", first: "Sara", last: "Levi", role: "miembro", email: "sara.l@beitshalom.org.es", phone: "+34 91 555 3301", address: "Carrer d'Aribau 130", zip: "08036", city: "Barcelona", state: "Cataluña", country: "España", lat: 41.3920, lng: 2.1545, website: "", social: { ig: "@sara.levi", fb: "", tiktok: "", x: "" }, entities: [{ id: "e6", role: "miembro" }], tags: [], language: "es", status: "activo", birthday: "1991-01-19", lastContact: "2026-04-05" },
+    { id: "p17", first: "Jonathan", last: "Reyes", role: "otro", roleOther: "Productor principal", email: "jon@sonidopromesa.com", phone: "+1 615 555 9001", address: "1820 8th Ave S", zip: "37203", city: "Nashville", state: "TN", country: "USA", lat: 36.1390, lng: -86.7884, website: "jonreyes.studio", social: { ig: "@jonreyes.studio", fb: "", tiktok: "@jonreyes", x: "" }, entities: [{ id: "e7", role: "otro", roleOther: "Productor principal" }], tags: ["audio"], language: "en", status: "activo", birthday: "1986-06-30", lastContact: "2026-05-03" },
+    { id: "p18", first: "Karen", last: "Smith", role: "otro", roleOther: "Ingeniera de mezcla", email: "karen@sonidopromesa.com", phone: "+1 615 555 9002", address: "1900 8th Ave S", zip: "37203", city: "Nashville", state: "TN", country: "USA", lat: 36.1380, lng: -86.7890, website: "", social: { ig: "@karenmix", fb: "", tiktok: "", x: "" }, entities: [{ id: "e7", role: "otro", roleOther: "Ingeniera" }], tags: [], language: "en", status: "activo", birthday: "1989-11-02", lastContact: "2026-04-28" },
+    { id: "p19", first: "Andrea", last: "Lozano", role: "otro", roleOther: "CEO", email: "andrea@promeza.app", phone: "+1 786 555 0010", address: "1450 Brickell Ave", zip: "33131", city: "Miami", state: "FL", country: "USA", lat: 25.7635, lng: -80.1915, website: "andrealozano.com", social: { ig: "@andrealozano", fb: "", tiktok: "", x: "@andrealozano" }, entities: [{ id: "e8", role: "otro", roleOther: "CEO" }], tags: ["liderazgo", "vip"], language: "es", status: "activo", birthday: "1983-03-17", lastContact: "2026-05-05" },
+    { id: "p20", first: "Tomás", last: "Iturbe", role: "otro", roleOther: "Head of Product", email: "tomas@promeza.app", phone: "+1 786 555 0011", address: "1455 Brickell Ave", zip: "33131", city: "Miami", state: "FL", country: "USA", lat: 25.7637, lng: -80.1920, website: "", social: { ig: "@tomi.it", fb: "", tiktok: "", x: "" }, entities: [{ id: "e8", role: "otro", roleOther: "Head of Product" }], tags: ["producto"], language: "es", status: "activo", birthday: "1987-07-21", lastContact: "2026-05-04" },
+    { id: "p21", first: "Priscila", last: "Núñez", role: "otro", roleOther: "Diseñadora", email: "pris@promeza.app", phone: "+1 786 555 0012", address: "1430 Brickell Ave", zip: "33131", city: "Miami", state: "FL", country: "USA", lat: 25.7630, lng: -80.1910, website: "", social: { ig: "@pris.design", fb: "", tiktok: "@prisdesign", x: "" }, entities: [{ id: "e8", role: "otro", roleOther: "Diseñadora" }], tags: ["diseño"], language: "es", status: "activo", birthday: "1994-10-10", lastContact: "2026-05-01" },
+    { id: "p22", first: "Miguel", last: "Polanco", role: "pastor", email: "miguel.p@riodevida.do", phone: "+1 809 555 4400", address: "Av. Winston Churchill 90", zip: "10148", city: "Santo Domingo", state: "Distrito Nacional", country: "República Dominicana", lat: 18.4685, lng: -69.9420, website: "miguelpolanco.do", social: { ig: "@pastormiguel", fb: "pastormiguelpolanco", tiktok: "", x: "" }, entities: [{ id: "e9", role: "pastor" }], tags: ["liderazgo"], language: "es", status: "activo", birthday: "1974-08-08", lastContact: "2026-04-20" },
+    { id: "p23", first: "Yulissa", last: "Reyes", role: "adorador", email: "yulissa.r@riodevida.do", phone: "+1 809 555 4401", address: "Calle El Recodo 12", zip: "10148", city: "Santo Domingo", state: "Distrito Nacional", country: "República Dominicana", lat: 18.4690, lng: -69.9410, website: "", social: { ig: "@yulissa.r", fb: "", tiktok: "@yulissar", x: "" }, entities: [{ id: "e9", role: "adorador" }], tags: ["música"], language: "es", status: "activo", birthday: "1996-05-12", lastContact: "2026-04-26" },
+    { id: "p24", first: "Luis", last: "Almonte", role: "tesorero", email: "luis.a@riodevida.do", phone: "+1 809 555 4402", address: "Av. Sarasota 45", zip: "10114", city: "Santo Domingo", state: "Distrito Nacional", country: "República Dominicana", lat: 18.4585, lng: -69.9395, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e9", role: "tesorero" }], tags: [], language: "es", status: "inactivo", birthday: "1980-02-28", lastContact: "2025-11-15" },
+    { id: "p25", first: "Renato", last: "Vargas", role: "pastor", email: "renato.v@casaadoracion.pe", phone: "+51 1 555 8800", address: "Av. Javier Prado Este 4180", zip: "15023", city: "Lima", state: "Lima", country: "Perú", lat: -12.0900, lng: -76.9755, website: "", social: { ig: "@pastorrenato", fb: "", tiktok: "", x: "" }, entities: [{ id: "e10", role: "pastor" }], tags: ["liderazgo"], language: "es", status: "activo", birthday: "1971-11-11", lastContact: "2026-04-12" },
+    { id: "p26", first: "Carolina", last: "Bravo", role: "lider", email: "caro.b@casaadoracion.pe", phone: "+51 1 555 8801", address: "Av. La Molina 200", zip: "15024", city: "Lima", state: "Lima", country: "Perú", lat: -12.0850, lng: -76.9500, website: "", social: { ig: "@caro.bravo", fb: "", tiktok: "", x: "" }, entities: [{ id: "e10", role: "lider" }], tags: ["jóvenes"], language: "es", status: "activo", birthday: "1990-06-16", lastContact: "2026-04-21" },
+    { id: "p27", first: "Esther", last: "Yepez", role: "otro", roleOther: "Directora", email: "esther@luzparaniños.org", phone: "+593 2 555 1100", address: "Av. Amazonas N34-440", zip: "170135", city: "Quito", state: "Pichincha", country: "Ecuador", lat: -0.1810, lng: -78.4675, website: "", social: { ig: "@esther.yepez", fb: "", tiktok: "", x: "" }, entities: [{ id: "e11", role: "otro", roleOther: "Directora" }], tags: ["liderazgo"], language: "es", status: "activo", birthday: "1978-01-25", lastContact: "2026-04-08" },
+    { id: "p28", first: "Pablo", last: "Andrade", role: "miembro", email: "pablo.a@luzparaniños.org", phone: "+593 2 555 1101", address: "Av. Naciones Unidas 1100", zip: "170135", city: "Quito", state: "Pichincha", country: "Ecuador", lat: -0.1750, lng: -78.4810, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e11", role: "miembro" }], tags: ["voluntario"], language: "es", status: "activo", birthday: "1998-09-09", lastContact: "2026-03-28" },
+    { id: "p29", first: "Gonzalo", last: "Tapia", role: "pastor", email: "gonzalo.t@emanuel.cl", phone: "+56 2 555 6600", address: "Av. Apoquindo 4490", zip: "7550000", city: "Santiago", state: "RM", country: "Chile", lat: -33.4097, lng: -70.5760, website: "gonzalotapia.cl", social: { ig: "@pastorgonzalo", fb: "", tiktok: "", x: "" }, entities: [{ id: "e12", role: "pastor" }], tags: ["liderazgo"], language: "es", status: "activo", birthday: "1969-02-02", lastContact: "2026-04-15" },
+    { id: "p30", first: "Isidora", last: "Muñoz", role: "secretario", email: "isidora.m@emanuel.cl", phone: "+56 2 555 6601", address: "Av. Vitacura 4000", zip: "7630000", city: "Santiago", state: "RM", country: "Chile", lat: -33.4030, lng: -70.5820, website: "", social: { ig: "@isidora.m", fb: "", tiktok: "", x: "" }, entities: [{ id: "e12", role: "secretario" }], tags: [], language: "es", status: "activo", birthday: "1992-11-29", lastContact: "2026-04-19" },
+    { id: "p31", first: "Cristóbal", last: "Reyes", role: "adorador", email: "cristobal.r@emanuel.cl", phone: "+56 2 555 6602", address: "Av. Las Condes 12000", zip: "7550000", city: "Santiago", state: "RM", country: "Chile", lat: -33.4070, lng: -70.5400, website: "", social: { ig: "@cristobal.music", fb: "", tiktok: "@cristobalmusic", x: "" }, entities: [{ id: "e12", role: "adorador" }], tags: ["música"], language: "es", status: "activo", birthday: "1995-07-07", lastContact: "2026-04-30" },
+    { id: "p32", first: "Natalia", last: "Cordero", role: "influencer", email: "hola@nataliacordero.com", phone: "+1 305 555 7777", address: "Sunset Harbour Dr", zip: "33139", city: "Miami Beach", state: "FL", country: "USA", lat: 25.7910, lng: -80.1410, website: "nataliacordero.com", social: { ig: "@nataliacordero", fb: "nataliacordero", tiktok: "@nataliac", x: "@nataliac" }, entities: [], tags: ["vip", "prensa"], language: "es", status: "activo", birthday: "1991-04-30", lastContact: "2026-05-02" },
+    { id: "p33", first: "Bryan", last: "Torres", role: "influencer", email: "bryan@bryantorres.tv", phone: "+1 786 555 9090", address: "NW 36th St", zip: "33127", city: "Miami", state: "FL", country: "USA", lat: 25.8060, lng: -80.2080, website: "bryantorres.tv", social: { ig: "@bryantorres", fb: "", tiktok: "@bryantorres", x: "" }, entities: [], tags: ["creador"], language: "es", status: "activo", birthday: "1997-12-15", lastContact: "2026-04-27" },
+    { id: "p34", first: "Mónica", last: "Salazar", role: "miembro", email: "monica.s@centrodefe.org", phone: "+1 305 555 1108", address: "1290 SW 30th Ave", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7570, lng: -80.2395, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e1", role: "miembro" }], tags: [], language: "es", status: "activo", birthday: "1983-08-20", lastContact: "2026-04-11" },
+    { id: "p35", first: "Hernán", last: "Duarte", role: "miembro", email: "hernan.d@centrodefe.org", phone: "+1 305 555 1109", address: "660 SW 27th Ave", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7590, lng: -80.2380, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e1", role: "miembro" }], tags: [], language: "es", status: "activo", birthday: "1976-10-04", lastContact: "2026-03-12" },
+    { id: "p36", first: "Beatriz", last: "Soto", role: "ujiere", email: "beatriz.s@centrodefe.org", phone: "+1 305 555 1110", address: "880 SW 24th Ave", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7585, lng: -80.2370, website: "", social: { ig: "@bsoto", fb: "", tiktok: "", x: "" }, entities: [{ id: "e1", role: "ujiere" }], tags: [], language: "es", status: "activo", birthday: "1982-12-22", lastContact: "2026-04-02" },
+    { id: "p37", first: "Iván", last: "Cabrera", role: "miembro", email: "ivan.c@riodevida.do", phone: "+1 809 555 4403", address: "Av. 27 de Febrero 88", zip: "10148", city: "Santo Domingo", state: "Distrito Nacional", country: "República Dominicana", lat: 18.4660, lng: -69.9450, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e9", role: "miembro" }], tags: [], language: "es", status: "activo", birthday: "1989-03-03", lastContact: "2026-04-09" },
+    { id: "p38", first: "Verónica", last: "Lara", role: "miembro", email: "vero.l@emanuel.cl", phone: "+56 2 555 6603", address: "Av. Kennedy 5000", zip: "7550000", city: "Santiago", state: "RM", country: "Chile", lat: -33.4055, lng: -70.5500, website: "", social: { ig: "@verolara", fb: "", tiktok: "", x: "" }, entities: [{ id: "e12", role: "miembro" }], tags: [], language: "es", status: "activo", birthday: "1986-05-05", lastContact: "2026-03-19" },
+    { id: "p39", first: "Joaquín", last: "Bravo", role: "lider", email: "joaq.b@emanuel.cl", phone: "+56 2 555 6604", address: "Av. El Bosque 200", zip: "7550000", city: "Santiago", state: "RM", country: "Chile", lat: -33.4150, lng: -70.5950, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e12", role: "lider" }], tags: ["jóvenes"], language: "es", status: "activo", birthday: "1993-09-27", lastContact: "2026-04-24" },
+    // ── California ──
+    { id: "p41", first: "Raúl", last: "Domínguez", role: "pastor", email: "raul.d@nuevavidaventura.org", phone: "+1 805 555 2210", address: "890 Telegraph Rd", zip: "93004", city: "Ventura", state: "CA", country: "USA", county: "Condado de Ventura", lat: 34.2746, lng: -119.2290, website: "rauldominguez.com", social: { ig: "@pastorraul", fb: "pastorraul", tiktok: "", x: "" }, entities: [{ id: "e13", role: "pastor" }], tags: ["liderazgo", "vip"], language: "es", status: "activo", stage: "aliado", birthday: "1970-05-14", lastContact: "2026-05-10" },
+    { id: "p42", first: "María", last: "Santos", role: "lider", email: "maria.s@nuevavidaventura.org", phone: "+1 805 555 2211", address: "2310 Saviers Rd", zip: "93033", city: "Oxnard", state: "CA", country: "USA", county: "Condado de Ventura", lat: 34.1975, lng: -119.1771, website: "", social: { ig: "@mariasantos_vc", fb: "", tiktok: "", x: "" }, entities: [{ id: "e13", role: "lider" }], tags: ["mujeres"], language: "es", status: "activo", stage: "comprometido", birthday: "1985-09-22", lastContact: "2026-05-08" },
+    { id: "p43", first: "Carlos", last: "Jiménez", role: "adorador", email: "carlos.j@nuevavidaventura.org", phone: "+1 805 555 2212", address: "1800 Ventura Blvd", zip: "93010", city: "Camarillo", state: "CA", country: "USA", county: "Condado de Ventura", lat: 34.2164, lng: -119.0376, website: "", social: { ig: "@carlosj.worship", fb: "", tiktok: "@carlosjimenez", x: "" }, entities: [{ id: "e13", role: "adorador" }], tags: ["música"], language: "es", status: "activo", stage: "aliado", birthday: "1991-03-07", lastContact: "2026-05-05" },
+    { id: "p44", first: "Patricia", last: "Flores", role: "miembro", email: "pati.f@gmail.com", phone: "+1 805 555 2213", address: "550 Moorpark Rd", zip: "91360", city: "Thousand Oaks", state: "CA", country: "USA", county: "Condado de Ventura", lat: 34.1706, lng: -118.8376, website: "", social: { ig: "@patriflores", fb: "", tiktok: "", x: "" }, entities: [{ id: "e13", role: "miembro" }], tags: [], language: "es", status: "activo", stage: "conocido", birthday: "1988-11-30", lastContact: "2026-04-20" },
+    { id: "p45", first: "Beatriz", last: "Guerrero", role: "miembro", email: "bea.g@gmail.com", phone: "+1 805 555 2214", address: "1200 Tapo Canyon Rd", zip: "93063", city: "Simi Valley", state: "CA", country: "USA", county: "Condado de Ventura", lat: 34.2694, lng: -118.7815, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "nuevo", birthday: "1995-06-14", lastContact: "2026-04-15" },
+    { id: "p46", first: "José", last: "Morales", role: "pastor", email: "jose.m@cclosangeles.org", phone: "+1 213 555 4420", address: "2810 S Vermont Ave", zip: "90007", city: "Los Ángeles", state: "CA", country: "USA", county: "Condado de Los Ángeles", lat: 34.0194, lng: -118.2912, website: "josemorales.org", social: { ig: "@pastorjose", fb: "pastorjose", tiktok: "", x: "@pastorjosem" }, entities: [{ id: "e14", role: "pastor" }], tags: ["liderazgo", "vip"], language: "es", status: "activo", stage: "aliado", birthday: "1968-08-19", lastContact: "2026-05-12" },
+    { id: "p47", first: "Rosa", last: "Gutiérrez", role: "secretario", email: "rosa.g@cclosangeles.org", phone: "+1 626 555 4421", address: "400 E Walnut St", zip: "91101", city: "Pasadena", state: "CA", country: "USA", county: "Condado de Los Ángeles", lat: 34.1478, lng: -118.1445, website: "", social: { ig: "@rosagtz", fb: "", tiktok: "", x: "" }, entities: [{ id: "e14", role: "secretario" }], tags: ["staff"], language: "es", status: "activo", stage: "comprometido", birthday: "1982-02-11", lastContact: "2026-05-07" },
+    { id: "p48", first: "Miguel", last: "Herrera", role: "lider", email: "miguel.h@cclosangeles.org", phone: "+1 562 555 4422", address: "310 E Ocean Blvd", zip: "90802", city: "Long Beach", state: "CA", country: "USA", county: "Condado de Los Ángeles", lat: 33.7701, lng: -118.1937, website: "", social: { ig: "@miguelh", fb: "", tiktok: "@mherrera", x: "" }, entities: [{ id: "e14", role: "lider" }], tags: ["jóvenes"], language: "es", status: "activo", stage: "comprometido", birthday: "1990-04-28", lastContact: "2026-04-30" },
+    { id: "p49", first: "Elena", last: "Vargas", role: "tesorero", email: "elena.v@cclosangeles.org", phone: "+1 818 555 4423", address: "700 N Brand Blvd", zip: "91203", city: "Glendale", state: "CA", country: "USA", county: "Condado de Los Ángeles", lat: 34.1425, lng: -118.2551, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [{ id: "e14", role: "tesorero" }], tags: [], language: "es", status: "activo", stage: "aliado", birthday: "1978-12-03", lastContact: "2026-05-01" },
+    { id: "p50", first: "Antonio", last: "Ruiz", role: "pastor", email: "antonio.r@oasisanaheim.org", phone: "+1 714 555 8840", address: "1210 W Lincoln Ave", zip: "92801", city: "Anaheim", state: "CA", country: "USA", county: "Condado de Orange", lat: 33.8353, lng: -117.9145, website: "", social: { ig: "@pastoranton", fb: "pastoranton", tiktok: "", x: "" }, entities: [{ id: "e15", role: "pastor" }], tags: ["liderazgo"], language: "es", status: "activo", stage: "aliado", birthday: "1973-07-16", lastContact: "2026-05-09" },
+    { id: "p51", first: "Sandra", last: "López", role: "lider", email: "sandra.l@oasisanaheim.org", phone: "+1 949 555 8841", address: "5400 Alton Pkwy", zip: "92604", city: "Irvine", state: "CA", country: "USA", county: "Condado de Orange", lat: 33.6846, lng: -117.8265, website: "", social: { ig: "@sandralopez", fb: "", tiktok: "@sandral", x: "" }, entities: [{ id: "e15", role: "lider" }], tags: ["mujeres"], language: "es", status: "activo", stage: "comprometido", birthday: "1987-01-25", lastContact: "2026-04-28" },
+    { id: "p52", first: "Roberto", last: "Chávez", role: "adorador", email: "roberto.ch@oasisanaheim.org", phone: "+1 714 555 8842", address: "900 W 5th St", zip: "92701", city: "Santa Ana", state: "CA", country: "USA", county: "Condado de Orange", lat: 33.7454, lng: -117.8677, website: "", social: { ig: "@rchavez.worship", fb: "", tiktok: "", x: "" }, entities: [{ id: "e15", role: "adorador" }], tags: ["música"], language: "es", status: "activo", stage: "conocido", birthday: "1993-10-10", lastContact: "2026-04-22" },
+    { id: "p53", first: "Felipe", last: "Martínez", role: "pastor", email: "felipe.m@rocafirme.org", phone: "+1 619 555 7730", address: "3410 National Ave", zip: "92113", city: "San Diego", state: "CA", country: "USA", county: "Condado de San Diego", lat: 32.7157, lng: -117.1611, website: "felipemartinez.com", social: { ig: "@pastorfelipe", fb: "pastorfelipe", tiktok: "", x: "" }, entities: [{ id: "e16", role: "pastor" }], tags: ["liderazgo", "vip"], language: "es", status: "activo", stage: "aliado", birthday: "1971-03-31", lastContact: "2026-05-11" },
+    { id: "p54", first: "Diana", last: "Torres", role: "lider", email: "diana.t@rocafirme.org", phone: "+1 619 555 7731", address: "690 H St", zip: "91910", city: "Chula Vista", state: "CA", country: "USA", county: "Condado de San Diego", lat: 32.6401, lng: -117.0842, website: "", social: { ig: "@dianatorres", fb: "", tiktok: "@dianatorres", x: "" }, entities: [{ id: "e16", role: "lider" }], tags: ["jóvenes"], language: "es", status: "activo", stage: "comprometido", birthday: "1989-08-04", lastContact: "2026-04-25" },
+    { id: "p55", first: "Luis", last: "Ramírez", role: "miembro", email: "luis.r@gmail.com", phone: "+1 951 555 6610", address: "3600 Market St", zip: "92501", city: "Riverside", state: "CA", country: "USA", county: "Condado de Riverside", lat: 33.9534, lng: -117.3961, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "nuevo", birthday: "1997-12-12", lastContact: "2026-04-10" },
+    { id: "p56", first: "Carmen", last: "Aguilar", role: "miembro", email: "carmen.a@gmail.com", phone: "+1 909 555 3310", address: "200 N Euclid Ave", zip: "91762", city: "Ontario", state: "CA", country: "USA", county: "Condado de San Bernardino", lat: 34.0633, lng: -117.6508, website: "", social: { ig: "@carmenaguilar", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "nuevo", birthday: "1992-05-20", lastContact: "2026-03-28" },
+    { id: "p40", first: "Adriana", last: "Pinto", role: "miembro", email: "adriana.p@cbesperanza.edu", phone: "+57 1 555 7702", address: "Calle 95 # 13-20", zip: "110221", city: "Bogotá", state: "Cundinamarca", country: "Colombia", lat: 4.6790, lng: -74.0490, website: "", social: { ig: "@adriana.p", fb: "", tiktok: "", x: "" }, entities: [{ id: "e4", role: "otro", roleOther: "Profesora de inglés" }], tags: ["docente"], language: "es", status: "activo", birthday: "1985-04-17", lastContact: "2026-04-14" },
+
+    // ── Duplicados de demo (mismo nombre/email/teléfono que registros existentes) ──
+    { id: "p57", first: "Marcos", last: "Rivera", role: "pastor", email: "m.rivera@gmail.com", phone: "+1 305 444 1101", address: "120 NW 27th Ave", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7600, lng: -80.2400, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "conocido", birthday: "", lastContact: "2026-03-01" },
+    { id: "p58", first: "Andrea", last: "Lozano", role: "otro", roleOther: "Directora", email: "andrea.lozano@hotmail.com", phone: "+1 786 333 0010", address: "Brickell Ave 1200", zip: "33131", city: "Miami", state: "FL", country: "USA", lat: 25.7635, lng: -80.1915, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "conocido", birthday: "", lastContact: "2026-02-15" },
+    { id: "p59", first: "Mariana", last: "Pérez", role: "influencer", email: "mariana@marianaperez.com", phone: "+52 55 9999 0003", address: "Polanco", zip: "11550", city: "Ciudad de México", state: "CDMX", country: "México", lat: 19.4348, lng: -99.1953, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "nuevo", birthday: "", lastContact: "2026-01-20" },
+    { id: "p60", first: "Bryan", last: "Torres", role: "influencer", email: "contact@bryantorres.tv", phone: "+1 786 555 9090", address: "NW 36th St 400", zip: "33127", city: "Miami", state: "FL", country: "USA", lat: 25.8060, lng: -80.2080, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "conocido", birthday: "", lastContact: "2026-03-10" },
+    { id: "p61", first: "Patricia", last: "Restrepo", role: "lider", email: "p.restrepo@cbesperanza.edu", phone: "+57 1 444 7700", address: "Carrera 11 # 93-50", zip: "110221", city: "Bogotá", state: "Cundinamarca", country: "Colombia", lat: 4.6762, lng: -74.0479, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "nuevo", birthday: "", lastContact: "2026-02-05" },
+    { id: "p62", first: "Lucía", last: "Hernández", role: "secretario", email: "lucia.hdz@gmail.com", phone: "+1 305 444 1102", address: "780 SW 22nd St", zip: "33135", city: "Miami", state: "FL", country: "USA", lat: 25.7530, lng: -80.2360, website: "", social: { ig: "", fb: "", tiktok: "", x: "" }, entities: [], tags: [], language: "es", status: "activo", stage: "nuevo", birthday: "", lastContact: "2026-01-10" },
+  ];
+
+  personas.forEach((p, i) => { p.color = palette[(p.first.charCodeAt(0) + i) % palette.length]; });
+
+  const comments = {
+    p1: [
+      { author: "Andrea Lozano", date: "2026-04-28", text: "Reunión de alianza confirmada para el 12 de mayo. Marcos trae al equipo de adoración." },
+      { author: "Tomás Iturbe", date: "2026-03-14", text: "Le compartí el deck del programa Pastores+. Quedó interesado." },
+    ],
+    p3: [{ author: "Andrea Lozano", date: "2026-04-19", text: "Confirmar disponibilidad para grabar en Sonido Promesa la primera semana de junio." }],
+    p8: [
+      { author: "Andrea Lozano", date: "2026-05-01", text: "Llamada exploratoria sobre patrocinio del programa de mentoría." },
+      { author: "Priscila Núñez", date: "2026-04-02", text: "Le envié el brand kit para el evento de mayo." },
+    ],
+    p10: [{ author: "Tomás Iturbe", date: "2026-04-29", text: "Aceptó publicar testimonio en su IG para el lanzamiento." }],
+    p19: [{ author: "Tomás Iturbe", date: "2026-05-05", text: "OKRs Q2 revisados. Foco en activación de líderes." }],
+    p22: [{ author: "Andrea Lozano", date: "2026-04-20", text: "Visita prevista a Santo Domingo en julio. Coordinar logística." }],
+    e1: [
+      { author: "Andrea Lozano", date: "2026-04-28", text: "Conferencia anual confirmada para octubre. Esperan 1.200 asistentes." },
+      { author: "Tomás Iturbe", date: "2026-03-22", text: "Pendiente: enviar contrato de licencia para el sistema de gestión." },
+    ],
+    e3: [{ author: "Andrea Lozano", date: "2026-05-01", text: "Patrocinan el programa Manos+Promeza. Renovación anual en junio." }],
+    e7: [{ author: "Priscila Núñez", date: "2026-04-30", text: "Sesión de fotos para campaña institucional el 18 de mayo." }],
+    e8: [{ author: "Andrea Lozano", date: "2026-05-05", text: "Hiring: 2 posiciones de ingeniería abiertas." }],
+    e9: [{ author: "Andrea Lozano", date: "2026-04-20", text: "Iglesia con fuerte alcance regional, candidata para piloto del módulo de discipulado." }],
+  };
+
+  // Demo tasks with due dates (appear in calendar + tasks view)
+  const tasks = {
+    p1:  [{ id: "dt1",  text: "Llamada de seguimiento trimestral",     due: "2026-06-05", done: false, createdAt: "2026-05-20" },
+          { id: "dt2",  text: "Enviar material de conferencia",         due: "2026-06-12", done: false, createdAt: "2026-05-20" }],
+    p8:  [{ id: "dt3",  text: "Reunión de planificación anual",         due: "2026-06-10", done: false, createdAt: "2026-05-20" }],
+    p10: [{ id: "dt4",  text: "Coordinar entrevista para podcast",      due: "2026-06-03", done: false, createdAt: "2026-05-20" }],
+    p19: [{ id: "dt5",  text: "Presentación de demo del CRM",           due: "2026-06-07", done: false, createdAt: "2026-05-20" }],
+    p22: [{ id: "dt6",  text: "Visita pastoral — Santo Domingo",        due: "2026-06-15", done: false, createdAt: "2026-05-20" }],
+    p25: [{ id: "dt7",  text: "Seguimiento propuesta de alianza",       due: "2026-06-20", done: false, createdAt: "2026-05-20" }],
+    p29: [{ id: "dt8",  text: "Confirmar participación en congreso",    due: "2026-06-08", done: false, createdAt: "2026-05-20" }],
+    p41: [{ id: "dt9",  text: "Reunión con líderes de condado Ventura", due: "2026-06-18", done: false, createdAt: "2026-05-20" }],
+    p17: [{ id: "dt10", text: "Revisar mezcla final del álbum",         due: "2026-05-30", done: false, createdAt: "2026-05-20" }],
+    p32: [{ id: "dt11", text: "Enviar propuesta de colaboración",       due: "2026-06-02", done: false, createdAt: "2026-05-20" }],
+  };
+
+  return { entities, personas, comments, tasks };
+})();
+
+// ─── Deterministic 7-digit UID from any ID string ───
+window.getUID = function(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  }
+  return String((Math.abs(h) % 9000000) + 1000000);
+};
+
+// ─── Users (fixed list — edit here to add/remove accounts) ───
+window.PROMEZA_USERS = [
+  { email: "betty@promeza.com",  name: "Betty García",   role: "admin"  },
+  { email: "andrea@promeza.com", name: "Andrea Lozano",  role: "editor" },
+  { email: "tomas@promeza.com",  name: "Tomás Iturbe",   role: "editor" },
+  { email: "priscila@promeza.com", name: "Priscila Núñez", role: "viewer" },
+];
+
+// ─── Pipeline stages ───
+window.PIPELINE_STAGES = [
+  { id: "nuevo",       label: "Nuevo",          color: "#6366f1", bg: "#6366f115" },
+  { id: "conocido",    label: "Contactado",      color: "#0ea5e9", bg: "#0ea5e915" },
+  { id: "seguimiento", label: "En proceso",      color: "#f59e0b", bg: "#f59e0b15" },
+  { id: "aliado",      label: "Comprometido",    color: "#10b981", bg: "#10b98115" },
+  { id: "inactivo",    label: "Archivado",       color: "#94a3b8", bg: "#94a3b815" },
+];
+
+// ─── Contact sources ───
+window.CONTACT_SOURCES = [
+  { id: "evento",    label: "Evento" },
+  { id: "referido",  label: "Referido" },
+  { id: "redes",     label: "Redes sociales" },
+  { id: "directo",   label: "Contacto directo" },
+  { id: "web",       label: "Web / Email" },
+  { id: "otro",      label: "Otro" },
+];
