@@ -9,29 +9,39 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
     try { return JSON.parse(localStorage.getItem("promeza_ejs")) || {}; } catch { return {}; }
   });
   const [atCfg, setAtCfg] = useState(() => window.AIRTABLE.getConfig());
-  const [msalCfg, setMsalCfg] = useState(() => window.CryptoUtils.getMSALConfig());
   const [syncStatus, setSyncStatus] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [msalSaved, setMsalSaved] = useState(false);
-  const [tab, setTab] = useState("microsoft");
+  const [tab, setTab] = useState("airtable");
   const [secMsg, setSecMsg] = useState(null);
+  const [secLoading, setSecLoading] = useState(false);
+  const [curPass, setCurPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
 
   const st = t.settings || {};
   const tabs = [
-    { id: "microsoft", label: "Microsoft" },
     { id: "airtable", label: "Airtable" },
     { id: "emailjs", label: "EmailJS" },
+    { id: "security", label: "Seguridad" },
     { id: "account", label: lang === "es" ? "Cuenta" : "Account" },
   ];
 
-  const saveMSALConfig = () => {
-    localStorage.setItem(window.CryptoUtils.MSAL_CONFIG_KEY, JSON.stringify(msalCfg));
-    setMsalSaved(true);
-    setTimeout(() => setMsalSaved(false), 2500);
+  const doChangePassword = async () => {
+    setSecMsg(null);
+    if (!curPass || !newPass || !confirmPass) { setSecMsg({ type: "err", text: "Completa todos los campos." }); return; }
+    if (newPass !== confirmPass) { setSecMsg({ type: "err", text: "Las contraseñas nuevas no coinciden." }); return; }
+    if (newPass.length < 8) { setSecMsg({ type: "err", text: "Mínimo 8 caracteres." }); return; }
+    setSecLoading(true);
+    try {
+      const result = await window.CryptoUtils.changePassword(curPass, newPass, data);
+      if (result.error) { setSecMsg({ type: "err", text: result.error }); }
+      else { setSecMsg({ type: "ok", text: "Contraseña cambiada correctamente." }); setCurPass(""); setNewPass(""); setConfirmPass(""); }
+    } catch (err) {
+      setSecMsg({ type: "err", text: "Error: " + err.message });
+    }
+    setSecLoading(false);
   };
-
-  const doChangePassword = async () => {};
 
   const saveAll = () => {
     localStorage.setItem("promeza_ejs", JSON.stringify(ejsCfg));
@@ -152,53 +162,29 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
             </div>
           )}
 
-          {/* ─── Microsoft ─── */}
-          {tab === "microsoft" && (
+          {/* ─── Security ─── */}
+          {tab === "security" && (
             <div>
-              <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-100)", borderRadius: 8, padding: "12px 16px", marginBottom: 18, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.7 }}>
-                <strong>Instrucciones en Azure Portal (portal.azure.com):</strong>
-                <ol style={{ margin: "8px 0 0 16px", padding: 0 }}>
-                  <li>Registros de aplicaciones → <strong>+ Nuevo registro</strong></li>
-                  <li>Tipos de cuenta: <em>Solo esta organización</em></li>
-                  <li>URI de redireccionamiento: tipo <strong>SPA</strong> → pega la URL de la app<br/>
-                    <code style={{ fontSize: 11, background: "var(--accent-100)", padding: "2px 6px", borderRadius: 4, wordBreak: "break-all" }}>{window.location.origin + window.location.pathname}</code>
-                  </li>
-                  <li>Copia el <strong>Id. de aplicación (cliente)</strong> y el <strong>Id. de directorio (inquilino)</strong></li>
-                </ol>
+              <div style={{ background: "var(--bg-soft)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-700)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Datos cifrados con AES-256</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Auto-cierre: 1 hora de inactividad</div>
+                </div>
               </div>
 
-              <div className="field" style={{ marginBottom: 12 }}>
-                <label>Id. de aplicación (Client ID)</label>
-                <input type="text" value={msalCfg.clientId || ""} onChange={e => setMsalCfg(c => ({ ...c, clientId: e.target.value.trim() }))}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Cambiar contraseña</div>
+              <div className="field" style={{ marginBottom: 10 }}>
+                <label>Contraseña actual</label>
+                <input type="password" value={curPass} onChange={e => setCurPass(e.target.value)} placeholder="Contraseña actual" disabled={secLoading} />
               </div>
-              <div className="field" style={{ marginBottom: 12 }}>
-                <label>Id. de directorio (Tenant ID)</label>
-                <input type="text" value={msalCfg.tenantId || ""} onChange={e => setMsalCfg(c => ({ ...c, tenantId: e.target.value.trim() }))}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
+              <div className="field" style={{ marginBottom: 10 }}>
+                <label>Nueva contraseña</label>
+                <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Mínimo 8 caracteres" disabled={secLoading} />
               </div>
-              <div className="field" style={{ marginBottom: 12 }}>
-                <label style={{ display: "flex", justifyContent: "space-between" }}>
-                  Correos autorizados
-                  <span style={{ fontWeight: 400, color: "var(--ink-4)", fontSize: 11 }}>vacío = cualquier @promeza.com</span>
-                </label>
-                <textarea value={msalCfg.authorizedEmails || ""} onChange={e => setMsalCfg(c => ({ ...c, authorizedEmails: e.target.value }))}
-                  placeholder={"betty@promeza.com, vanessa@promeza.com"}
-                  rows={3}
-                  style={{ width: "100%", resize: "vertical", fontFamily: "var(--font-mono)", fontSize: 12, padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 6, background: "var(--bg)", color: "var(--ink-1)" }} />
-                <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3 }}>Separa con comas. Si está vacío, se permite cualquier cuenta @promeza.com.</div>
-              </div>
-              <div className="field" style={{ marginBottom: 16 }}>
-                <label style={{ display: "flex", justifyContent: "space-between" }}>
-                  Clave adicional de cifrado
-                  <span style={{ fontWeight: 400, color: "var(--ink-4)", fontSize: 11 }}>opcional, recomendada</span>
-                </label>
-                <input type="password" value={msalCfg.extraKey || ""} onChange={e => setMsalCfg(c => ({ ...c, extraKey: e.target.value }))}
-                  placeholder="Ej: promeza2026seguro"
-                  style={{ fontFamily: "var(--font-mono)", fontSize: 12 }} />
-                <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3 }}>Frase extra que refuerza el cifrado AES de los datos. Todos los usuarios autorizados deben usar la misma.</div>
+              <div className="field" style={{ marginBottom: 14 }}>
+                <label>Confirmar nueva contraseña</label>
+                <input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="Repite la nueva contraseña" disabled={secLoading} />
               </div>
 
               {secMsg && (
@@ -210,23 +196,14 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
                 </div>
               )}
 
-              <button className="btn btn-primary" onClick={saveMSALConfig}>
-                {msalSaved ? "✓ Guardado" : "Guardar configuración"}
+              <button className="btn btn-primary" onClick={doChangePassword} disabled={secLoading}>
+                {secLoading ? "Guardando…" : "Cambiar contraseña"}
               </button>
 
-              <div style={{ marginTop: 20, borderTop: "1px solid var(--line)", paddingTop: 16, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                <div style={{ fontSize: 12, color: "var(--ink-3)", flex: 1 }}>
-                  <strong>Cifrado:</strong> AES-256 activo · <strong>Sesión:</strong> 30 días · <strong>Inactividad:</strong> 1 hora
-                </div>
+              <div style={{ marginTop: 20, borderTop: "1px solid var(--line)", paddingTop: 16 }}>
                 <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
-                  onClick={() => {
-                    if (confirm("¿Cerrar esta sesión?")) {
-                      clearSession();
-                      sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY || "promeza_sk");
-                      onLogout();
-                    }
-                  }}>
-                  <Icon name="log-out" /> Cerrar sesión
+                  onClick={() => { if (confirm("¿Cerrar esta sesión?")) { clearSession(); sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY); onLogout(); } }}>
+                  <Icon name="log-out" /> Cerrar esta sesión
                 </button>
               </div>
             </div>

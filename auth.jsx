@@ -1,29 +1,17 @@
-// PROMEZA CRM — Authentication via Microsoft Entra ID (Azure AD)
+// PROMEZA CRM — Authentication with AES-256 crypto
 
 // ─── Crypto utilities ───
 
+const PASS_HASH_KEY  = "promeza_pass_hash";
+const PASS_HASH_SALT = "promeza-crm-v1";
 const SESSION_CRYPTO_KEY = "promeza_sk";
-const MSAL_CONFIG_KEY    = "promeza_msal_cfg";
-const PASS_HASH_KEY      = "promeza_pass_hash"; // legacy — kept for migration only
-const PASS_HASH_SALT     = "promeza-crm-v1";
 
 const sha256 = async (str) => {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
 };
 
-// Shared AES-256 key for all authorized users — derived from Azure app credentials
-const deriveSharedKey = async (clientId, tenantId, extraKey = "") => {
-  const material = [clientId, tenantId, extraKey.trim(), "promeza-v1"].filter(Boolean).join(":");
-  const km = await crypto.subtle.importKey("raw", new TextEncoder().encode(material), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: new TextEncoder().encode("promeza-shared-2026"), iterations: 100000, hash: "SHA-256" },
-    km, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
-  );
-};
-
-// Legacy password-based key — used only when migrating old data
-const derivePasswordKey = async (password) => {
+const deriveAESKey = async (password) => {
   const km = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
     { name: "PBKDF2", salt: new TextEncoder().encode("promeza-salt-2026"), iterations: 100000, hash: "SHA-256" },
@@ -31,7 +19,8 @@ const derivePasswordKey = async (password) => {
   );
 };
 
-const storeSessionKey = async (key) => {
+const storeSessionKey = async (password) => {
+  const key = await deriveAESKey(password);
   const raw = await crypto.subtle.exportKey("raw", key);
   sessionStorage.setItem(SESSION_CRYPTO_KEY, btoa(String.fromCharCode(...new Uint8Array(raw))));
 };
@@ -45,29 +34,10 @@ const loadSessionKey = async () => {
   } catch { return null; }
 };
 
-const getMSALConfig = () => {
-  try { return JSON.parse(localStorage.getItem(MSAL_CONFIG_KEY)) || {}; }
-  catch { return {}; }
-};
-
-const buildMSALInstance = (cfg) => {
-  if (!cfg.clientId || !cfg.tenantId) return null;
-  try {
-    return new msal.PublicClientApplication({
-      auth: {
-        clientId: cfg.clientId,
-        authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
-        redirectUri: window.location.origin + window.location.pathname,
-      },
-      cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false },
-    });
-  } catch { return null; }
-};
-
 window.CryptoUtils = {
-  sha256, deriveSharedKey, derivePasswordKey, storeSessionKey, loadSessionKey,
-  getMSALConfig, buildMSALInstance,
-  SESSION_CRYPTO_KEY, MSAL_CONFIG_KEY, PASS_HASH_KEY, PASS_HASH_SALT,
+  sha256, deriveAESKey, storeSessionKey, loadSessionKey,
+  PASS_HASH_KEY, PASS_HASH_SALT, SESSION_CRYPTO_KEY,
+  getMSALConfig: () => ({}),
 
   encrypt: async (str, key) => {
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -83,12 +53,28 @@ window.CryptoUtils = {
     const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
     return new TextDecoder().decode(dec);
   },
+
+  changePassword: async (currentPass, newPass, data) => {
+    const curHash = await sha256(PASS_HASH_SALT + ":" + currentPass);
+    const stored = localStorage.getItem(PASS_HASH_KEY);
+    if (curHash !== stored) return { error: "Contraseña actual incorrecta" };
+    const newHash = await sha256(PASS_HASH_SALT + ":" + newPass);
+    localStorage.setItem(PASS_HASH_KEY, newHash);
+    await storeSessionKey(newPass);
+    const newKey = await loadSessionKey();
+    const enc = await window.CryptoUtils.encrypt(JSON.stringify(data), newKey);
+    localStorage.setItem("promeza_data_enc", enc);
+    return { key: newKey };
+  },
 };
 
 // ─── Session management ───
 
 const SESSION_KEY = "promeza_session";
 const SESSION_DURATION = 30 * 24 * 60 * 60 * 1000;
+
+const DEMO_USER = "Promeza";
+const DEFAULT_PASSWORD = "@Promeza!:2026";
 
 const getSession = () => {
   try {
@@ -121,121 +107,84 @@ const AuthBrand = () => (
   </div>
 );
 
-// Microsoft logo SVG
-const MicrosoftLogo = () => (
-  <svg width="18" height="18" viewBox="0 0 21 21" fill="none" style={{ flexShrink: 0 }}>
-    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-  </svg>
-);
-
-// ─── SetupScreen — shown when Azure is not yet configured ───
-
-const SetupScreen = () => (
-  <div className="auth-veil">
-    <div className="auth-card">
-      <AuthBrand />
-      <div className="auth-title">Configuración inicial</div>
-      <div className="auth-sub" style={{ marginBottom: 20 }}>
-        Para activar el login con Microsoft, configura tu aplicación de Azure.
-      </div>
-      <div style={{ background: "var(--bg-soft)", borderRadius: 10, padding: "14px 16px", fontSize: 13, lineHeight: 1.8 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Pasos en Azure Portal:</div>
-        <ol style={{ margin: 0, paddingLeft: 18 }}>
-          <li>Ve a <strong>portal.azure.com</strong> → Registros de aplicaciones → Nueva</li>
-          <li>En <em>Tipos de cuenta</em> selecciona <strong>Solo mi organización</strong></li>
-          <li>En <em>URI de redireccionamiento</em> agrega la URL de la app (tipo SPA)</li>
-          <li>Copia el <strong>Id. de aplicación (cliente)</strong> y el <strong>Id. de directorio (inquilino)</strong></li>
-          <li>Pégalos en <strong>Configuración → Microsoft</strong> dentro de la app</li>
-        </ol>
-      </div>
-      <div className="auth-footer">PROMEZA CRM v1.0 · {new Date().getFullYear()}</div>
-    </div>
-  </div>
-);
-
 // ─── AuthScreen ───
 
 const AuthScreen = ({ onLogin }) => {
-  const [loading, setLoading] = React.useState(false);
+  const [username, setUsername] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
+  const [showPw, setShowPw] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
-  const msalCfg = getMSALConfig();
-  const isConfigured = !!(msalCfg.clientId && msalCfg.tenantId);
-
-  if (!isConfigured) return <SetupScreen />;
-
-  const doMicrosoftLogin = async () => {
-    setLoading(true);
+  const doLogin = async () => {
     setError("");
+    if (!username.trim()) { setError("Ingresa el usuario."); return; }
+    if (!password) { setError("Ingresa la contraseña."); return; }
+
+    if (username.trim().toLowerCase() !== DEMO_USER.toLowerCase()) {
+      setError("Usuario o contraseña incorrectos."); return;
+    }
+
+    setLoading(true);
     try {
-      const msalInstance = buildMSALInstance(msalCfg);
-      if (!msalInstance) { setError("Error de configuración. Verifica Client ID y Tenant ID."); setLoading(false); return; }
+      let storedHash = localStorage.getItem(PASS_HASH_KEY);
+      if (!storedHash) {
+        storedHash = await sha256(PASS_HASH_SALT + ":" + DEFAULT_PASSWORD);
+        localStorage.setItem(PASS_HASH_KEY, storedHash);
+      }
 
-      const response = await msalInstance.loginPopup({
-        scopes: ["User.Read", "openid", "profile", "email"],
-        prompt: "select_account",
-      });
-
-      const email = (response.account?.username || "").toLowerCase();
-      if (!email) { setError("No se pudo obtener el correo de la cuenta."); setLoading(false); return; }
-
-      // Verify @promeza.com domain
-      if (!email.endsWith("@promeza.com")) {
-        setError("Solo se permiten cuentas @promeza.com.");
+      const inputHash = await sha256(PASS_HASH_SALT + ":" + password);
+      if (inputHash !== storedHash) {
+        setError("Usuario o contraseña incorrectos.");
         setLoading(false);
         return;
       }
 
-      // Check authorized list (if configured; empty = allow all @promeza.com)
-      const authorized = (msalCfg.authorizedEmails || "")
-        .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
-      if (authorized.length > 0 && !authorized.includes(email)) {
-        setError("Esta cuenta no está autorizada. Contacta al administrador.");
-        setLoading(false);
-        return;
-      }
-
-      // Derive and store shared AES key
-      const key = await deriveSharedKey(msalCfg.clientId, msalCfg.tenantId, msalCfg.extraKey || "");
-      await storeSessionKey(key);
-
-      saveSession(email);
-      onLogin(email);
+      await storeSessionKey(password);
+      saveSession(DEMO_USER);
+      onLogin(DEMO_USER);
     } catch (err) {
-      if (err.errorCode === "user_cancelled" || err.message?.includes("cancelled")) {
-        // user closed popup — do nothing
-      } else {
-        setError("Error al iniciar sesión: " + (err.message || err.errorCode || "Inténtalo de nuevo."));
-      }
+      console.error("Login error:", err);
+      setError("Error de autenticación. Intenta de nuevo.");
     }
     setLoading(false);
   };
+
+  const onKey = (e) => { if (e.key === "Enter") doLogin(); };
 
   return (
     <div className="auth-veil">
       <div className="auth-card">
         <AuthBrand />
         <div className="auth-title">Bienvenido</div>
-        <div className="auth-sub" style={{ marginBottom: 24 }}>
-          Inicia sesión con tu cuenta Microsoft <strong>@promeza.com</strong>
+        <div className="auth-sub">Ingresa tus credenciales para acceder</div>
+
+        <div className="field" style={{ marginBottom: 14 }}>
+          <label htmlFor="auth-user">Usuario</label>
+          <input id="auth-user" type="text" autoComplete="username"
+            value={username} onChange={e => { setUsername(e.target.value); setError(""); }}
+            placeholder="Promeza" autoFocus onKeyDown={onKey} disabled={loading} />
         </div>
 
-        {error && <div className="auth-error" style={{ marginBottom: 14 }}><Icon name="alert" size={14} /> {error}</div>}
+        <div className="field" style={{ marginBottom: 14 }}>
+          <label htmlFor="auth-pw" style={{ display: "flex", justifyContent: "space-between" }}>
+            Contraseña
+            <button type="button" onClick={() => setShowPw(s => !s)}
+              style={{ border: "none", background: "none", cursor: "pointer", fontSize: 11, color: "var(--ink-4)", fontFamily: "inherit", padding: 0 }}
+              disabled={loading}>
+              {showPw ? "Ocultar" : "Mostrar"}
+            </button>
+          </label>
+          <input id="auth-pw" type={showPw ? "text" : "password"} autoComplete="current-password"
+            value={password} onChange={e => { setPassword(e.target.value); setError(""); }}
+            placeholder="Contraseña" onKeyDown={onKey} disabled={loading} />
+        </div>
 
-        <button
-          className="btn btn-primary btn-block auth-submit"
-          onClick={doMicrosoftLogin}
-          disabled={loading}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-          {loading ? "Conectando…" : (<><MicrosoftLogo /> Iniciar sesión con Microsoft</>)}
+        {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
+
+        <button className="btn btn-primary btn-block auth-submit" onClick={doLogin} disabled={loading}>
+          {loading ? "Verificando…" : "Continuar →"}
         </button>
-
-        <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--ink-4)" }}>
-          El código de verificación de Microsoft Authenticator<br/>se solicitará si tienes 2FA activo en tu cuenta.
-        </div>
 
         <div className="auth-footer">PROMEZA CRM v1.0 · {new Date().getFullYear()}</div>
       </div>
@@ -243,86 +192,65 @@ const AuthScreen = ({ onLogin }) => {
   );
 };
 
-// ─── UnlockScreen — shown on tab reload when session is valid but AES key is gone ───
+// ─── UnlockScreen ───
 
 const UnlockScreen = ({ email, onUnlock, onLogout }) => {
-  const [loading, setLoading] = React.useState(false);
+  const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState("");
+  const [showPw, setShowPw] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
   const displayName = email || "usuario";
-  const msalCfg = getMSALConfig();
-  const isConfigured = !!(msalCfg.clientId && msalCfg.tenantId);
 
-  // If MSAL not configured yet, clear stale session and go back to login/setup
-  React.useEffect(() => {
-    if (!isConfigured) { clearSession(); onLogout(); }
-  }, []);
-
-  const doReauth = async () => {
-    setLoading(true);
+  const doUnlock = async () => {
     setError("");
+    if (!password) { setError("Ingresa tu contraseña."); return; }
+    setLoading(true);
     try {
-      const msalInstance = buildMSALInstance(msalCfg);
-      if (!msalInstance) { setError("Error de configuración."); setLoading(false); return; }
+      const storedHash = localStorage.getItem(PASS_HASH_KEY);
+      if (!storedHash) { setError("Error de sesión. Inicia sesión de nuevo."); setLoading(false); return; }
 
-      // Try silent SSO first (works if Microsoft session cookies are fresh)
-      let account = null;
-      try {
-        const silentResult = await msalInstance.ssoSilent({
-          scopes: ["User.Read", "openid"],
-          loginHint: email,
-        });
-        account = silentResult.account;
-      } catch {
-        // Silent failed — show popup
-        const popupResult = await msalInstance.loginPopup({
-          scopes: ["User.Read", "openid"],
-          loginHint: email,
-          prompt: "none",
-        }).catch(async () => {
-          return msalInstance.loginPopup({
-            scopes: ["User.Read", "openid"],
-            loginHint: email,
-          });
-        });
-        account = popupResult?.account;
-      }
+      const inputHash = await sha256(PASS_HASH_SALT + ":" + password);
+      if (inputHash !== storedHash) { setError("Contraseña incorrecta."); setLoading(false); return; }
 
-      const accountEmail = (account?.username || "").toLowerCase();
-      if (!accountEmail || accountEmail !== email.toLowerCase()) {
-        setError("La cuenta no coincide con la sesión activa.");
-        setLoading(false);
-        return;
-      }
-
-      const key = await deriveSharedKey(msalCfg.clientId, msalCfg.tenantId, msalCfg.extraKey || "");
-      await storeSessionKey(key);
+      await storeSessionKey(password);
       onUnlock();
     } catch (err) {
-      if (!err.errorCode?.includes("cancelled") && !err.message?.includes("cancelled")) {
-        setError("Error al reautenticar: " + (err.message || err.errorCode));
-      }
+      console.error("Unlock error:", err);
+      setError("Error al desbloquear. Intenta de nuevo.");
     }
     setLoading(false);
   };
+
+  const onKey = (e) => { if (e.key === "Enter") doUnlock(); };
 
   return (
     <div className="auth-veil">
       <div className="auth-card">
         <AuthBrand />
         <div className="auth-title">Bienvenido de vuelta</div>
-        <div className="auth-sub" style={{ marginBottom: 24 }}>
-          Hola, <strong>{displayName}</strong>. Confirma tu identidad para continuar.
+        <div className="auth-sub" style={{ marginBottom: 20 }}>
+          Hola, <strong>{displayName}</strong>. Ingresa tu contraseña para continuar.
         </div>
 
-        {error && <div className="auth-error" style={{ marginBottom: 14 }}><Icon name="alert" size={14} /> {error}</div>}
+        <div className="field" style={{ marginBottom: 14 }}>
+          <label htmlFor="unlock-pw" style={{ display: "flex", justifyContent: "space-between" }}>
+            Contraseña
+            <button type="button" onClick={() => setShowPw(s => !s)}
+              style={{ border: "none", background: "none", cursor: "pointer", fontSize: 11, color: "var(--ink-4)", fontFamily: "inherit", padding: 0 }}
+              disabled={loading}>
+              {showPw ? "Ocultar" : "Mostrar"}
+            </button>
+          </label>
+          <input id="unlock-pw" type={showPw ? "text" : "password"} autoComplete="current-password"
+            value={password} onChange={e => { setPassword(e.target.value); setError(""); }}
+            placeholder="Contraseña" autoFocus onKeyDown={onKey} disabled={loading} />
+        </div>
 
-        <button
-          className="btn btn-primary btn-block auth-submit"
-          onClick={doReauth}
-          disabled={loading}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-          {loading ? "Verificando…" : (<><MicrosoftLogo /> Continuar con Microsoft</>)}
+        {error && <div className="auth-error"><Icon name="alert" size={14} /> {error}</div>}
+
+        <button className="btn btn-primary btn-block auth-submit" onClick={doUnlock} disabled={loading}>
+          {loading ? "Verificando…" : "Desbloquear →"}
         </button>
 
         <div style={{ textAlign: "center", marginTop: 16 }}>
