@@ -6,7 +6,7 @@ const PipelineView = ({ t, lang, data, go, onUpdatePerson }) => {
   const [typeFilter, setTypeFilter] = React.useState("all"); // all | personas | entidades
   const today = new Date().toISOString().slice(0, 10);
   const stages = window.PIPELINE_STAGES || [];
-  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
+  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inhabilitado" : "activo");
   const getUID = window.getUID || ((id) => id);
 
   const norm = (s) => (s || "").toLowerCase();
@@ -23,9 +23,9 @@ const PipelineView = ({ t, lang, data, go, onUpdatePerson }) => {
   const reviewPersonas = data.personas.filter(p => window.hasContactIssue ? window.hasContactIssue(p) : false);
 
   const TABS = [
-    { id: "activos",      label: "Activos",         count: activePersonas.length + activeEntities.length },
-    { id: "inhabilitados", label: "Inhabilitados",  count: inactivePersonas.length + inactiveEntities.length },
-    { id: "revision",     label: "Por Revisión",    count: reviewPersonas.length },
+    { id: "activos",      label: lang === "en" ? "Active" : "Activos",         count: activePersonas.length + activeEntities.length },
+    { id: "inhabilitados", label: lang === "en" ? "Disabled" : "Inhabilitados", count: inactivePersonas.length + inactiveEntities.length },
+    { id: "revision",     label: lang === "en" ? "Under Review" : "Por Revisión", count: reviewPersonas.length },
   ];
 
   // ─── Filtered sets ───
@@ -97,11 +97,11 @@ const PipelineView = ({ t, lang, data, go, onUpdatePerson }) => {
             onChange={e => { e.stopPropagation(); const next = e.target.value; onUpdatePerson(p.id, { stage: next, status: next === "inactivo" ? "inactivo" : "activo" }); }}
             onClick={e => e.stopPropagation()}
             style={{ flex: 1, border: "none", background: "transparent", fontFamily: "inherit", fontSize: 12, fontWeight: 600, color: stage ? stage.color : "var(--ink-3)", cursor: "pointer", outline: "none", padding: 0 }}>
-            {stages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+            {stages.map(s => <option key={s.id} value={s.id}>{window.stageLabel ? window.stageLabel(s.id, lang) : s.label}</option>)}
           </select>
           {(pendingTasks > 0) && (
             <span style={{ fontSize: 10.5, fontWeight: 700, color: overdueTasks > 0 ? "var(--bad)" : "var(--ink-3)", background: overdueTasks > 0 ? "#fee2e2" : "var(--bg-soft)", padding: "1px 6px", borderRadius: 5 }}>
-              {overdueTasks > 0 ? "⚠" : "✓"} {pendingTasks} tarea{pendingTasks !== 1 ? "s" : ""}
+              {overdueTasks > 0 ? "⚠" : "✓"} {pendingTasks} {lang === "en" ? "task" + (pendingTasks !== 1 ? "s" : "") : "tarea" + (pendingTasks !== 1 ? "s" : "")}
             </span>
           )}
         </div>

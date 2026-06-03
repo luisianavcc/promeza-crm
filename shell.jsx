@@ -11,7 +11,6 @@ const Sidebar = ({ route, go, t, counts, mobileOpen, onClose }) => {
     { id: "my-tasks",  label: t.nav.myTasks   || "Mis tareas", icon: "clock" },
     { id: "campaigns", label: t.nav.campaigns || "Campañas",   icon: "megaphone" },
     { id: "calendar",  label: t.nav.calendar  || "Calendario", icon: "calendar" },
-    { id: "goals",     label: t.nav.goals     || "Metas",      icon: "target",   count: counts.completedGoals || null, countStyle: { background: "var(--good)" } },
     { id: "duplicates", label: t.nav.duplicates || "Duplicados",  icon: "copy",     count: counts.dups || null, countStyle: { background: "#f59e0b" } },
     { id: "map",       label: t.nav.map,                   icon: "map" },
   ];
@@ -268,9 +267,10 @@ const NotificationsPanel = ({ data, lang, go, onClose, dupCount = 0 }) => {
   );
 };
 
-const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, userEmail, data, go, onMenuToggle, dupCount = 0, onGoBack, canGoBack }) => {
+const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings, onLogout, userEmail, data, go, onMenuToggle, dupCount = 0, onGoBack, canGoBack, atSyncing = false, onSyncNow }) => {
   const [showNotif, setShowNotif] = React.useState(false);
   const [showSearch, setShowSearch] = React.useState(false);
+  const [showUserMenu, setShowUserMenu] = React.useState(false);
   const notifRef = React.useRef(null);
   const searchRef = React.useRef(null);
   const inputRef = React.useRef(null);
@@ -531,6 +531,19 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
       </div>
 
       <div className="top-spacer" />
+
+      {/* Airtable sync indicator */}
+      {atSyncing ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: "var(--accent)", fontWeight: 500, padding: "4px 10px", background: "var(--accent-50)", borderRadius: 20 }}>
+          <div style={{ width: 10, height: 10, border: "2px solid var(--accent)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
+          {lang === "en" ? "Syncing…" : "Sincronizando…"}
+        </div>
+      ) : onSyncNow && window.AIRTABLE?.getConfig()?.pat ? (
+        <button className="btn btn-sm btn-ghost" onClick={onSyncNow} title={lang === "en" ? "Sync with Airtable" : "Sincronizar con Airtable"} style={{ fontSize: 11, gap: 4 }}>
+          <Icon name="sync" size={12} /> {lang === "en" ? "Sync" : "Sync"}
+        </button>
+      ) : null}
+
       <div className="lang-toggle topbar-lang">
         <button className={lang === "es" ? "on" : ""} onClick={() => setLang("es")}>ES</button>
         <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
@@ -559,11 +572,32 @@ const Topbar = ({ t, lang, setLang, query, setQuery, onSearchSubmit, onSettings,
       <button className="icon-btn" title={t.settings ? t.settings.title : "Settings"} onClick={onSettings}>
         <Icon name="settings" />
       </button>
-      <div className="user-pill" style={{ cursor: "pointer" }} onClick={onSettings} title={userEmail}>
-        <div className="av" style={{ background: "var(--accent)" }}>{userInitials}</div>
-        <span style={{ fontSize: 12, fontWeight: 500, maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {firstName || userEmail}
-        </span>
+      <div style={{ position: "relative" }}>
+        <div className="user-pill" style={{ cursor: "pointer" }} onClick={() => setShowUserMenu(v => !v)} title={userEmail}>
+          <div className="av" style={{ background: "var(--accent)" }}>{userInitials}</div>
+          <span style={{ fontSize: 12, fontWeight: 500, maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {firstName || userEmail}
+          </span>
+        </div>
+        {showUserMenu && (
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 1999 }} onClick={() => setShowUserMenu(false)} />
+            <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 2000, background: "var(--bg-card, #fff)", border: "1px solid var(--line)", borderRadius: 10, padding: "6px 0", minWidth: 210, boxShadow: "0 8px 32px rgba(0,0,0,.18)" }}>
+              <div style={{ padding: "8px 16px 10px", borderBottom: "1px solid var(--line)", marginBottom: 4 }}>
+                <div style={{ fontSize: 11, color: "var(--ink-3)", marginBottom: 1 }}>Sesión activa</div>
+                <div style={{ fontSize: 12, fontWeight: 600 }}>{userEmail}</div>
+              </div>
+              <button onClick={() => { setShowUserMenu(false); onSettings(); }}
+                style={{ width: "100%", textAlign: "left", padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--ink)", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon name="settings" size={14} /> Configuración
+              </button>
+              <button onClick={() => { setShowUserMenu(false); if (window.confirm("¿Cerrar sesión?")) onLogout && onLogout(); }}
+                style={{ width: "100%", textAlign: "left", padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#ef4444", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon name="log-out" size={14} /> Cerrar sesión
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </header>
   );

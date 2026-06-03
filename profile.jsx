@@ -18,7 +18,7 @@ const getPersonAlerts = (p, lang) => {
     const d = Math.round((new Date(today) - new Date(p.nextAction)) / 86400000);
     out.push({ level: "error", key: "overdue", icon: "calendar", msg: es ? `Acción vencida hace ${d} día${d !== 1 ? "s" : ""}` : `Action overdue by ${d} day${d !== 1 ? "s" : ""}` });
   }
-  if (!p.nextAction && p.status !== "inactivo" && p.stage !== "inactivo")
+  if (!p.nextAction && p.status !== "inactivo" && p.stage !== "inhabilitado")
     out.push({ level: "info", key: "noact", icon: "calendar", msg: es ? "Sin próxima acción programada" : "No next action set" });
   if (p.lastContact && p.status !== "inactivo") {
     const d = Math.round((new Date(today) - new Date(p.lastContact)) / 86400000);
@@ -264,7 +264,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
           <div className="sub">
             <span className="role-pill">{p.role === "otro" ? (p.roleOther || t.roles.otro) : t.roles[p.role]}</span>
             {(() => {
-              const stageId = p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
+              const stageId = p.stage || (p.status === "inactivo" ? "inhabilitado" : "activo");
               const st = (window.PIPELINE_STAGES || []).find(s => s.id === stageId);
               return st ? <span style={{ padding: "3px 10px", borderRadius: 12, fontSize: 11.5, fontWeight: 700, letterSpacing: ".01em", background: st.bg, color: st.color, border: "1px solid " + st.color + "40" }}>{st.label}</span> : null;
             })()}
@@ -369,7 +369,7 @@ const PersonProfile = ({ id, t, lang, data, go, addComment, onUpdatePerson, onEd
               const goInactive = p.status !== "inactivo";
               onUpdatePerson && onUpdatePerson(p.id, {
                 status: goInactive ? "inactivo" : "activo",
-                stage: goInactive ? "inactivo" : "conocido",
+                stage: goInactive ? "inhabilitado" : "activo",
               });
             }}>
             <Icon name={p.status === "inactivo" ? "check" : "x"} />

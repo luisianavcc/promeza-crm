@@ -112,7 +112,7 @@ const ImportModal = ({ type, lang, onClose, onImport }) => {
       tags: tagsRaw ? tagsRaw.split(/[,;|]/).map(s => s.trim()).filter(Boolean) : [],
       language: findCol(row, ["idioma", "language"]) || "es",
       status: "activo",
-      stage: findCol(row, ["etapa pipeline", "etapa", "stage", "pipeline"]) || "conocido",
+      stage: findCol(row, ["etapa pipeline", "etapa", "stage", "pipeline"]) || "activo",
       source: findCol(row, ["fuente", "source", "origen"]),
       nextAction: findCol(row, ["próxima acción", "proxima accion", "next action", "proximaaccion"]),
       birthday: findCol(row, ["cumpleaños", "cumpleanios", "birthday"]),
@@ -292,7 +292,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
   const countries = ["all", ...new Set(data.personas.map(p => p.country).filter(Boolean))];
   const roles = ["all", ...Object.keys(t.roles)];
 
-  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
+  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inhabilitado" : "activo");
 
   const rows = data.personas.filter(p => {
     if (role !== "all" && p.role !== role) return false;
@@ -384,7 +384,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
       { key: "cumpleanos", label: "Cumpleaños" },
       { key: "ultimoContacto", label: "Último contacto" },
     ];
-    const stageLabel = (id) => (window.PIPELINE_STAGES || []).find(s => s.id === id)?.label || id || "";
+    const stageLabel = (id) => window.stageLabel ? window.stageLabel(id, lang) : ((window.PIPELINE_STAGES || []).find(s => s.id === id)?.label || id || "");
     const sourceLabel = (id) => (window.CONTACT_SOURCES || []).find(s => s.id === id)?.label || id || "";
     const csvRows = rows.map(p => ({
       id: p.id,
@@ -408,7 +408,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
       etiquetas: (p.tags || []).join(", "),
       idioma: p.language,
       statusReg: p.status,
-      etapa: stageLabel(p.stage || (p.status === "inactivo" ? "inactivo" : "conocido")),
+      etapa: stageLabel(p.stage || (p.status === "inactivo" ? "inhabilitado" : "activo")),
       fuente: sourceLabel(p.source),
       proximaAccion: p.nextAction,
       cumpleanos: p.birthday,
@@ -491,7 +491,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
               ))}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", minWidth: 52 }}>Etapa:</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: ".05em", minWidth: 52 }}>{lang === "en" ? "Stage:" : "Etapa:"}</span>
               <button className={"chip " + (stageFilter === "all" ? "on" : "")} onClick={() => setStageFilter("all")}>{t.common.all}</button>
               {(window.PIPELINE_STAGES || []).map(s => (
                 <button key={s.id} onClick={() => setStageFilter(s.id)} style={{
@@ -500,7 +500,7 @@ const PersonasList = ({ t, lang, data, go, onImportPersonas, globalQ = "", onBul
                   background: stageFilter === s.id ? s.bg : "transparent",
                   color: stageFilter === s.id ? s.color : "var(--ink-3)",
                   fontFamily: "inherit", fontSize: 12, fontWeight: 500, cursor: "pointer",
-                }}>{s.label}</button>
+                }}>{window.stageLabel ? window.stageLabel(s.id, lang) : s.label}</button>
               ))}
             </div>
           </div>

@@ -4,7 +4,7 @@ const { useState, useMemo, useEffect, useRef } = React;
 
 // ─── Settings Modal ───
 
-const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
+const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout, onRestoreData }) => {
   const [ejsCfg, setEjsCfg] = useState(() => {
     try { return JSON.parse(localStorage.getItem("promeza_ejs")) || {}; } catch { return {}; }
   });
@@ -15,9 +15,71 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
   const [tab, setTab] = useState("airtable");
   const [secMsg, setSecMsg] = useState(null);
   const [secLoading, setSecLoading] = useState(false);
-  const [curPass, setCurPass] = useState("");
-  const [newPass, setNewPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
+  const [authorizedEmails, setAuthorizedEmails] = useState(() => {
+    try { return (JSON.parse(localStorage.getItem(window.CryptoUtils?.MSAL_CONFIG_KEY)) || {}).authorizedEmails || ""; } catch { return ""; }
+  });
+  const [accessLog, setAccessLog] = useState(() => window.AIRTABLE?.getAccessLog() || []);
+  const [backupMsg, setBackupMsg] = React.useState(null);
+
+  const doExport = () => {
+    const backup = {
+      version: 1,
+      exported: new Date().toISOString(),
+      personas: data.personas,
+      entities: data.entities,
+      tasks: data.tasks || {},
+      interactions: data.interactions || {},
+      projects: data.projects || [],
+      campaigns: data.campaigns || [],
+      calendarEvents: data.calendarEvents || [],
+      comments: data.comments || {},
+      attachments: data.attachments || {},
+      changelog: data.changelog || {},
+      goals: data.goals || [],
+      segments: data.segments || [],
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "promeza-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const doImport = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        if (!parsed.personas || !parsed.entities) {
+          setBackupMsg({ type: "err", text: lang === "es" ? "Archivo inválido: faltan personas o entidades" : "Invalid file: missing personas or entities" });
+          return;
+        }
+        if (window.confirm(lang === "es" ? "¿Restaurar estos datos? Se reemplazarán TODOS los datos actuales." : "Restore this data? ALL current data will be replaced.")) {
+          onRestoreData({
+            personas: parsed.personas || [],
+            entities: parsed.entities || [],
+            tasks: parsed.tasks || {},
+            interactions: parsed.interactions || {},
+            projects: parsed.projects || [],
+            campaigns: parsed.campaigns || [],
+            calendarEvents: parsed.calendarEvents || [],
+            comments: parsed.comments || {},
+            attachments: parsed.attachments || {},
+            changelog: parsed.changelog || {},
+            goals: parsed.goals || [],
+            segments: parsed.segments || [],
+          });
+          setBackupMsg({ type: "ok", text: lang === "es" ? `✓ Datos restaurados: ${parsed.personas.length} personas, ${parsed.entities.length} entidades` : `✓ Data restored: ${parsed.personas.length} people, ${parsed.entities.length} entities` });
+        }
+      } catch {
+        setBackupMsg({ type: "err", text: lang === "es" ? "Error al leer el archivo" : "Error reading file" });
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const st = t.settings || {};
   const tabs = [
@@ -25,6 +87,7 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
     { id: "emailjs", label: "EmailJS" },
     { id: "security", label: "Seguridad" },
     { id: "account", label: lang === "es" ? "Cuenta" : "Account" },
+    { id: "backup", label: lang === "es" ? "Respaldo" : "Backup" },
   ];
 
   const doChangePassword = async () => {
@@ -46,6 +109,10 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
   const saveAll = () => {
     localStorage.setItem("promeza_ejs", JSON.stringify(ejsCfg));
     window.AIRTABLE.saveConfig(atCfg);
+    // Save authorized emails into MSAL config
+    const msalKey = window.CryptoUtils?.MSAL_CONFIG_KEY || "promeza_msal_cfg";
+    const msalCfg = (() => { try { return JSON.parse(localStorage.getItem(msalKey)) || {}; } catch { return {}; } })();
+    localStorage.setItem(msalKey, JSON.stringify({ ...msalCfg, authorizedEmails }));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -111,26 +178,21 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
           {/* ─── Airtable ─── */}
           {tab === "airtable" && (
             <div>
-              <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-100)", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12.5, color: "var(--ink-2)" }}>
-                <strong>{lang === "es" ? "Instrucciones:" : "Instructions:"}</strong>
-                <ol style={{ margin: "6px 0 0 16px", padding: 0, lineHeight: 1.8 }}>
-                  <li>{lang === "es" ? "Ve a" : "Go to"} <a href="https://airtable.com/create/tokens" target="_blank" rel="noopener">airtable.com/create/tokens</a> {lang === "es" ? "y crea un token con permisos de lectura/escritura" : "and create a token with read/write permissions"}</li>
-                  <li>{lang === "es" ? "Crea dos tablas en tu base:" : "Create two tables in your base:"} <strong>Personas</strong> {lang === "es" ? "y" : "and"} <strong>Entidades</strong></li>
-                  <li>{lang === "es" ? "El Base ID empieza con 'app...' — lo encuentras en la URL de tu base" : "The Base ID starts with 'app...' — found in your base URL"}</li>
-                </ol>
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: "#10b981", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  <Icon name="check" size={16} style={{ color: "#fff" }} />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#166534" }}>{lang === "es" ? "Conectado a la base compartida" : "Connected to shared base"}</div>
+                  <div style={{ fontSize: 12, color: "#166534", opacity: 0.8 }}>PROMEZA CRM · app0MYHVyhTYFsDqV</div>
+                </div>
               </div>
-              <Field label={st.pat || "Personal Access Token"} value={atCfg.pat} onChange={v => setAtCfg(c => ({ ...c, pat: v }))} placeholder="patxxxxxxxxxxxxxxxx" mono />
-              <Field label={st.baseId || "Base ID"} value={atCfg.baseId} onChange={v => setAtCfg(c => ({ ...c, baseId: v }))} placeholder="appxxxxxxxxxxxxxxxx" mono />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <Field label={st.personasTable || "Tabla Personas"} value={atCfg.personasTable || "PERSONAS PROMEZA CRM"} onChange={v => setAtCfg(c => ({ ...c, personasTable: v }))} placeholder="PERSONAS PROMEZA CRM" />
-                <Field label={st.entidadesTable || "Tabla Entidades"} value={atCfg.entidadesTable || "ENTIDADES PROMEZA CRM"} onChange={v => setAtCfg(c => ({ ...c, entidadesTable: v }))} placeholder="ENTIDADES PROMEZA CRM" />
-              </div>
-              <div style={{ background: "var(--bg-soft)", borderRadius: 8, padding: "10px 14px", marginTop: 4, fontSize: 12, color: "var(--ink-3)" }}>
+              <div style={{ background: "var(--bg-soft)", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "var(--ink-3)" }}>
                 {st.lastSync || "Última sync:"} <strong>{lastSyncFmt}</strong>
               </div>
               {syncStatus && (
                 <div style={{
-                  marginTop: 10, padding: "10px 14px", borderRadius: 8, fontSize: 12.5,
+                  marginBottom: 12, padding: "10px 14px", borderRadius: 8, fontSize: 12.5,
                   background: syncStatus.startsWith("✓") ? "#f0fdf4" : "#fff5f5",
                   color: syncStatus.startsWith("✓") ? "#166534" : "#991b1b",
                   border: "1px solid " + (syncStatus.startsWith("✓") ? "#bbf7d0" : "#fecaca"),
@@ -138,11 +200,9 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
                   {syncStatus}
                 </div>
               )}
-              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                <button className="btn btn-primary" style={{ flex: 1 }} disabled={syncing || !atCfg.pat || !atCfg.baseId} onClick={doSync}>
-                  <Icon name="sync" /> {syncing ? (st.syncing || "Sincronizando…") : (st.sync || "Sincronizar todo a Airtable")}
-                </button>
-              </div>
+              <button className="btn btn-primary" style={{ width: "100%" }} disabled={syncing} onClick={doSync}>
+                <Icon name="sync" /> {syncing ? (st.syncing || "Sincronizando…") : (st.sync || "Sincronizar todo a Airtable")}
+              </button>
             </div>
           )}
 
@@ -165,44 +225,68 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
           {/* ─── Security ─── */}
           {tab === "security" && (
             <div>
-              <div style={{ background: "var(--bg-soft)", borderRadius: 10, padding: "12px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+              {/* Info bar */}
+              <div style={{ background: "var(--bg-soft)", borderRadius: 10, padding: "12px 16px", marginBottom: 18, display: "flex", alignItems: "center", gap: 10 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-700)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Datos cifrados con AES-256</div>
-                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Auto-cierre: 1 hora de inactividad</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Microsoft Entra ID · AES-256</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>Auto-cierre: 1 hora de inactividad · Solo @promeza.com</div>
                 </div>
               </div>
 
-              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Cambiar contraseña</div>
-              <div className="field" style={{ marginBottom: 10 }}>
-                <label>Contraseña actual</label>
-                <input type="password" value={curPass} onChange={e => setCurPass(e.target.value)} placeholder="Contraseña actual" disabled={secLoading} />
+              {/* Authorized emails */}
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Correos autorizados</div>
+              <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 8 }}>
+                Deja vacío para permitir cualquier cuenta @promeza.com. Si escribes correos específicos, solo ellos podrán entrar.
               </div>
-              <div className="field" style={{ marginBottom: 10 }}>
-                <label>Nueva contraseña</label>
-                <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Mínimo 8 caracteres" disabled={secLoading} />
+              <div className="field" style={{ marginBottom: 4 }}>
+                <textarea
+                  value={authorizedEmails}
+                  onChange={e => setAuthorizedEmails(e.target.value)}
+                  placeholder={"vanessa@promeza.com\nbetty@promeza.com\njuan@promeza.com"}
+                  rows={4}
+                  style={{ width: "100%", fontFamily: "var(--mono, monospace)", fontSize: 12, resize: "vertical" }}
+                />
               </div>
-              <div className="field" style={{ marginBottom: 14 }}>
-                <label>Confirmar nueva contraseña</label>
-                <input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="Repite la nueva contraseña" disabled={secLoading} />
-              </div>
+              <div style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 18 }}>Un correo por línea o separados por coma. Se guarda al presionar "Guardar configuración".</div>
 
-              {secMsg && (
-                <div style={{ padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 12,
-                  background: secMsg.type === "ok" ? "#f0fdf4" : "#fff5f5",
-                  color: secMsg.type === "ok" ? "#166534" : "#991b1b",
-                  border: "1px solid " + (secMsg.type === "ok" ? "#bbf7d0" : "#fecaca") }}>
-                  {secMsg.text}
+              {/* Access log */}
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>Registro de accesos</span>
+                <button className="btn" style={{ fontSize: 11, padding: "3px 10px" }} onClick={() => setAccessLog(window.AIRTABLE?.getAccessLog() || [])}>
+                  Actualizar
+                </button>
+              </div>
+              {accessLog.length === 0 ? (
+                <div style={{ fontSize: 13, color: "var(--ink-3)", textAlign: "center", padding: "20px 0" }}>Sin registros aún</div>
+              ) : (
+                <div style={{ maxHeight: 260, overflowY: "auto", border: "1px solid var(--line)", borderRadius: 8 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+                    <thead>
+                      <tr style={{ background: "var(--bg-soft)", position: "sticky", top: 0 }}>
+                        {["Fecha", "Usuario", "Acción", "Dispositivo", "Localidad"].map(h => (
+                          <th key={h} style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "var(--ink-2)", borderBottom: "1px solid var(--line)", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accessLog.map((e, i) => (
+                        <tr key={i} style={{ borderBottom: "1px solid var(--line)" }}>
+                          <td style={{ padding: "5px 10px", color: "var(--ink-3)", whiteSpace: "nowrap" }}>{new Date(e.ts).toLocaleString("es")}</td>
+                          <td style={{ padding: "5px 10px", fontWeight: 500 }}>{(e.email || "").split("@")[0]}</td>
+                          <td style={{ padding: "5px 10px" }}>{e.action}</td>
+                          <td style={{ padding: "5px 10px", color: "var(--ink-3)" }}>{e.device}</td>
+                          <td style={{ padding: "5px 10px", color: "var(--ink-3)" }}>{e.location}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
 
-              <button className="btn btn-primary" onClick={doChangePassword} disabled={secLoading}>
-                {secLoading ? "Guardando…" : "Cambiar contraseña"}
-              </button>
-
-              <div style={{ marginTop: 20, borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+              <div style={{ marginTop: 18, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
                 <button className="btn" style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
-                  onClick={() => { if (confirm("¿Cerrar esta sesión?")) { clearSession(); sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY); onLogout(); } }}>
+                  onClick={() => { if (window.confirm("¿Cerrar esta sesión?")) { clearSession(); sessionStorage.removeItem(window.CryptoUtils?.SESSION_CRYPTO_KEY || "promeza_sk"); onLogout(); } }}>
                   <Icon name="log-out" /> Cerrar esta sesión
                 </button>
               </div>
@@ -229,6 +313,40 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout }) => {
                 }}>
                 <Icon name="log-out" /> {st.logout || "Cerrar sesión"}
               </button>
+            </div>
+          )}
+
+          {/* ─── Backup ─── */}
+          {tab === "backup" && (
+            <div>
+              {/* Export */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{lang === "es" ? "Exportar datos" : "Export data"}</div>
+                <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginBottom: 10 }}>{lang === "es" ? "Descarga una copia completa de todos tus datos como archivo JSON. Guárdala en un lugar seguro." : "Download a complete copy of all your data as a JSON file. Keep it in a safe place."}</div>
+                <div style={{ background: "var(--bg-soft)", borderRadius: 8, padding: "10px 14px", marginBottom: 10, fontSize: 12, color: "var(--ink-3)" }}>
+                  {data.personas.length} {lang === "es" ? "personas" : "people"} · {data.entities.length} {lang === "es" ? "entidades" : "entities"} · {(data.projects || []).length} {lang === "es" ? "proyectos" : "projects"}
+                </div>
+                <button className="btn btn-primary" onClick={doExport}>
+                  <Icon name="download" /> {lang === "es" ? "Descargar backup JSON" : "Download JSON backup"}
+                </button>
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--line)", paddingTop: 20 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{lang === "es" ? "Importar / Restaurar" : "Import / Restore"}</div>
+                <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 14px", marginBottom: 10, fontSize: 12, color: "#991b1b" }}>
+                  ⚠ {lang === "es" ? "Esto reemplazará TODOS los datos actuales con el contenido del archivo." : "This will replace ALL current data with the file contents."}
+                </div>
+                <label className="btn" style={{ cursor: "pointer" }}>
+                  <Icon name="upload" /> {lang === "es" ? "Seleccionar archivo de respaldo…" : "Select backup file…"}
+                  <input type="file" accept=".json" style={{ display: "none" }} onChange={e => { doImport(e.target.files[0]); e.target.value = ""; }} />
+                </label>
+              </div>
+
+              {backupMsg && (
+                <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, fontSize: 12.5, background: backupMsg.type === "ok" ? "#f0fdf4" : "#fff5f5", color: backupMsg.type === "ok" ? "#166534" : "#991b1b", border: "1px solid " + (backupMsg.type === "ok" ? "#bbf7d0" : "#fecaca") }}>
+                  {backupMsg.text}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -279,6 +397,82 @@ const computeChanges = (oldObj, updates, fieldLabels) => {
   return changes;
 };
 
+// ─── Reminders Modal ───
+
+const RemindersModal = ({ lang, data, onClose, go }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayMMDD = today.slice(5);
+  const birthdaysToday = data.personas.filter(p => p.birthday && p.birthday.slice(5) === todayMMDD && p.status !== "inactivo");
+  const overdueTasks = [];
+  Object.entries(data.tasks || {}).forEach(([pid, tasks]) => {
+    tasks.forEach(tk => {
+      if (!tk.done && tk.due && tk.due < today) {
+        const p = data.personas.find(x => x.id === pid);
+        overdueTasks.push({ ...tk, personaName: p ? p.first + " " + (p.last || "") : "" });
+      }
+    });
+  });
+
+  return (
+    <div className="modal-veil" onClick={onClose}>
+      <div className="modal" style={{ width: "min(480px,100%)" }} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div style={{ fontWeight: 600, fontSize: 15 }}>
+            {lang === "es" ? "Recordatorios de hoy" : "Today's reminders"}
+          </div>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" /></button>
+        </div>
+        <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {birthdaysToday.length > 0 && (
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#f59e0b", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                🎂 {lang === "es" ? "Cumpleaños hoy" : "Birthdays today"}
+              </div>
+              {birthdaysToday.map(p => (
+                <div key={p.id} className="hover-row" onClick={() => { go({ name: "person", id: p.id }); onClose(); }}
+                  style={{ borderRadius: 8 }}>
+                  <div className="av-circle" style={{ background: p.color, width: 32, height: 32, fontSize: 11, flexShrink: 0 }}>
+                    {(p.first[0] || "") + (p.last ? p.last[0] : "")}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{p.first} {p.last}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{p.role}</div>
+                  </div>
+                  <span style={{ fontSize: 18 }}>🎂</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {overdueTasks.length > 0 && (
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#ef4444", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                ⚠ {overdueTasks.length} {lang === "es" ? "tarea" + (overdueTasks.length !== 1 ? "s vencidas" : " vencida") : "overdue task" + (overdueTasks.length !== 1 ? "s" : "")}
+              </div>
+              {overdueTasks.slice(0, 5).map(tk => (
+                <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: "#fff5f5", borderRadius: 7, marginBottom: 4, border: "1px solid #fecaca" }}>
+                  <Icon name="check" size={12} style={{ color: "#ef4444", flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }}>{tk.text}</span>
+                  {tk.personaName && <span style={{ fontSize: 11, color: "#b91c1c", fontWeight: 600 }}>{tk.personaName}</span>}
+                  <span style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "#ef4444", fontWeight: 700 }}>{tk.due}</span>
+                </div>
+              ))}
+              {overdueTasks.length > 5 && <div style={{ fontSize: 11.5, color: "var(--ink-3)", textAlign: "center", marginTop: 4 }}>+{overdueTasks.length - 5} {lang === "es" ? "más" : "more"}</div>}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", paddingTop: 4 }}>
+            <button className="btn" onClick={() => { go({ name: "tasks" }); onClose(); }}>
+              <Icon name="check" /> {lang === "es" ? "Ver tareas" : "View tasks"}
+            </button>
+            <button className="btn btn-primary" onClick={onClose}>
+              {lang === "es" ? "Entendido" : "Got it"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── App Root ───
 
 const App = () => {
@@ -302,6 +496,8 @@ const App = () => {
   const [dupPairs, setDupPairs] = useState([]);
   const [entityDupPairs, setEntityDupPairs] = useState([]);
   const [sideOpen, setSideOpen] = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
+  const [remindersShown, setRemindersShown] = useState(false);
 
   // Compute stable 7-digit UID from internal ID string
   const computeUID = (id) => {
@@ -354,6 +550,30 @@ const App = () => {
     };
   };
 
+  const [atSyncing, setAtSyncing] = useState(false);
+
+  const mergeFromAirtable = (atData, prev) => {
+    if (!atData || !prev) return prev;
+    const atPersonaIds = new Set(atData.personas.map(p => p.id));
+    const atEntityIds = new Set(atData.entities.map(e => e.id));
+    const localOnlyPersonas = prev.personas.filter(p => !atPersonaIds.has(p.id));
+    const localOnlyEntities = prev.entities.filter(e => !atEntityIds.has(e.id));
+    return {
+      ...prev,
+      personas: [...atData.personas, ...localOnlyPersonas],
+      entities: [...atData.entities, ...localOnlyEntities],
+    };
+  };
+
+  const syncFromAirtable = () => {
+    setAtSyncing(true);
+    window.AIRTABLE.loadData().then(atData => {
+      if (atData && (atData.personas.length > 0 || atData.entities.length > 0)) {
+        setData(prev => mergeFromAirtable(atData, prev));
+      }
+    }).catch(console.warn).finally(() => setAtSyncing(false));
+  };
+
   useEffect(() => {
     const initData = async () => {
       // 1. Try to load crypto key from sessionStorage
@@ -376,6 +596,8 @@ const App = () => {
           const parsed = JSON.parse(json);
           setData(processLoadedData(parsed));
           setDataReady(true);
+          // Load from Airtable in background to pick up teammate changes
+          syncFromAirtable();
           return;
         }
 
@@ -468,6 +690,26 @@ const App = () => {
     }
   }, [data && data.personas && data.personas.length > 0]); // run once when data loads
 
+  useEffect(() => {
+    if (!dataReady || !data || !userEmail || remindersShown) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const todayMMDD = today.slice(5);
+    const birthdaysToday = data.personas.filter(p => p.birthday && p.birthday.slice(5) === todayMMDD && p.status !== "inactivo");
+    const overdueTasks = [];
+    Object.entries(data.tasks || {}).forEach(([pid, tasks]) => {
+      tasks.forEach(tk => {
+        if (!tk.done && tk.due && tk.due < today) {
+          const p = data.personas.find(x => x.id === pid);
+          overdueTasks.push({ ...tk, personaName: p ? p.first + " " + p.last : "" });
+        }
+      });
+    });
+    if (birthdaysToday.length > 0 || overdueTasks.length > 0) {
+      setShowReminders(true);
+    }
+    setRemindersShown(true);
+  }, [dataReady, data, userEmail, remindersShown]);
+
   const [routeHistory, setRouteHistory] = useState([]);
 
   const go = (r) => {
@@ -540,6 +782,7 @@ const App = () => {
       next.changelog = { ...(next.changelog || {}), [id]: [{ id: "cl" + id, date: createdAt, author: userEmail || "Usuario", changes: [{ field: "record", type: "created" }] }] };
       return next;
     });
+    window.AIRTABLE.savePersona(newP, data.entities).catch(console.warn);
     setModal(null);
     setRoute({ name: "person", id });
   };
@@ -563,6 +806,7 @@ const App = () => {
       next.changelog = { ...(next.changelog || {}), [id]: [{ id: "cl" + id, date: createdAtE, author: userEmail || "Usuario", changes: [{ field: "record", type: "created" }] }] };
       return next;
     });
+    window.AIRTABLE.saveEntity(newE, data.entities).catch(console.warn);
     setModal(null);
     setRoute({ name: "entity", id });
   };
@@ -585,6 +829,8 @@ const App = () => {
   };
 
   const handleUpdatePerson = (id, updates) => {
+    const current = data.personas.find(p => p.id === id);
+    const updated = current ? { ...current, ...updates } : null;
     setData(d => {
       const old = d.personas.find(p => p.id === id);
       const changes = old ? computeChanges(old, updates, PERSON_FIELD_LABELS) : [];
@@ -594,9 +840,12 @@ const App = () => {
       } : d.changelog;
       return { ...d, personas: d.personas.map(p => p.id === id ? { ...p, ...updates } : p), changelog: cl };
     });
+    if (updated) window.AIRTABLE.savePersona(updated, data.entities).catch(console.warn);
   };
 
   const handleUpdateEntity = (id, updates) => {
+    const current = data.entities.find(e => e.id === id);
+    const updated = current ? { ...current, ...updates } : null;
     setData(d => {
       const old = d.entities.find(e => e.id === id);
       const changes = old ? computeChanges(old, updates, ENTITY_FIELD_LABELS) : [];
@@ -606,18 +855,22 @@ const App = () => {
       } : d.changelog;
       return { ...d, entities: d.entities.map(e => e.id === id ? { ...e, ...updates } : e), changelog: cl };
     });
+    if (updated) window.AIRTABLE.saveEntity(updated, data.entities).catch(console.warn);
   };
 
   const handleEditPerson = (id) => { setEditingId(id); setModal("edit-person"); };
   const handleSaveEditPerson = (form) => {
     const tags = form.tags ? form.tags.split(",").map(s => s.trim()).filter(Boolean) : [];
     const status = form.stage === "inactivo" ? "inactivo" : "activo";
-    handleUpdatePerson(editingId, { ...form, tags, status, entities: form.entities.map(le => ({ id: le.id, role: le.role, roleOther: le.roleOther })) });
+    const updates = { ...form, tags, status, entities: form.entities.map(le => ({ id: le.id, role: le.role, roleOther: le.roleOther })) };
+    handleUpdatePerson(editingId, updates);
     setModal(null);
     setEditingId(null);
   };
   const handleDeletePerson = (id) => {
     if (!confirm(lang === "es" ? "¿Eliminar esta persona? Esta acción no se puede deshacer." : "Delete this person? This cannot be undone.")) return;
+    const cfg = window.AIRTABLE.getConfig();
+    if (cfg.pat && cfg.baseId) window.AIRTABLE.deleteRecord(cfg.personasTable || "PERSONAS PROMEZA CRM", id).catch(console.warn);
     setData(d => ({ ...d, personas: d.personas.filter(p => p.id !== id) }));
     setRoute({ name: "personas" });
   };
@@ -631,6 +884,8 @@ const App = () => {
   };
   const handleDeleteEntity = (id) => {
     if (!confirm(lang === "es" ? "¿Eliminar esta entidad? Esta acción no se puede deshacer." : "Delete this entity? This cannot be undone.")) return;
+    const cfg = window.AIRTABLE.getConfig();
+    if (cfg.pat && cfg.baseId) window.AIRTABLE.deleteRecord(cfg.entidadesTable || "ENTIDADES PROMEZA CRM", id).catch(console.warn);
     setData(d => ({ ...d, entities: d.entities.filter(e => e.id !== id) }));
     setRoute({ name: "entities" });
   };
@@ -990,6 +1245,7 @@ const App = () => {
         query={query} setQuery={setQuery}
         onSearchSubmit={() => { if (query.trim() && route.name !== "personas" && route.name !== "entities") setRoute({ name: "personas" }); }}
         onSettings={() => setModal("settings")}
+        onLogout={() => { clearSession(); sessionStorage.removeItem(window.CryptoUtils?.SESSION_CRYPTO_KEY || "promeza_sk"); if (window.AIRTABLE) window.AIRTABLE.logAccess(userEmail, "Cierre de sesión"); setUserEmail(null); }}
         userEmail={userEmail}
         data={data}
         go={go}
@@ -997,6 +1253,8 @@ const App = () => {
         dupCount={counts.dups}
         onGoBack={goBack}
         canGoBack={routeHistory.length > 0}
+        atSyncing={atSyncing}
+        onSyncNow={syncFromAirtable}
       />
       <main className="main">{view}</main>
 
@@ -1011,6 +1269,7 @@ const App = () => {
           t={t} lang={lang} data={data} cryptoKey={cryptoKey}
           onClose={() => setModal(null)}
           onLogout={() => { clearSession(); sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY || "promeza_sk"); setUserEmail(null); }}
+          onRestoreData={setData}
         />
       )}
       {modal === "edit-person" && editingId && (() => {
@@ -1023,6 +1282,9 @@ const App = () => {
         if (!entity) return null;
         return <NewEntityForm t={t} lang={lang} data={data} onClose={() => { setModal(null); setEditingId(null); }} onSave={handleSaveEditEntity} initialData={entity} editMode />;
       })()}
+      {showReminders && data && (
+        <RemindersModal lang={lang} data={data} onClose={() => setShowReminders(false)} go={go} />
+      )}
     </div>
   );
 };

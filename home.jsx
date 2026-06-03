@@ -1,9 +1,35 @@
 // PROMEZA CRM — Dashboard / Home
 
+const DonutChart = ({ segments, size = 110 }) => {
+  const cx = size / 2, cy = size / 2;
+  const th = size * 0.19;
+  const r = (size - th) / 2;
+  const C = 2 * Math.PI * r;
+  const total = segments.reduce((s, d) => s + d.value, 0);
+  let cum = 0;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--line)" strokeWidth={th} />
+      {total > 0 && segments.map((seg, i) => {
+        if (!seg.value) return null;
+        const dash = (seg.value / total) * C;
+        const off = C / 4 - cum;
+        cum += dash;
+        return <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+          stroke={seg.color} strokeWidth={th - 2}
+          strokeDasharray={`${dash} ${C - dash}`}
+          strokeDashoffset={off} />;
+      })}
+      <text x={cx} y={cy - 4} textAnchor="middle" fontSize={size * 0.2} fontWeight="800" fill="var(--ink)">{total}</text>
+      <text x={cx} y={cy + 14} textAnchor="middle" fontSize={size * 0.09} fill="var(--ink-4)" fontWeight="600">TOTAL</text>
+    </svg>
+  );
+};
+
 const Home = ({ t, lang, data, go }) => {
   const { personas, entities } = data;
   const today = new Date().toISOString().slice(0, 10);
-  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inactivo" : "conocido");
+  const stageOf = (p) => p.stage || (p.status === "inactivo" ? "inhabilitado" : "activo");
 
   // KPIs
   const allTasks = Object.values(data.tasks || {}).flat();
@@ -11,11 +37,45 @@ const Home = ({ t, lang, data, go }) => {
   const overdueTasks = allTasks.filter(tk => !tk.done && tk.due && tk.due < today).length;
   const projects = data.projects || [];
   const activeProjects = projects.filter(pr => pr.status === "activo").length;
-  const activePersonas = personas.filter(p => stageOf(p) !== "inactivo").length;
-  const comprometidos = personas.filter(p => stageOf(p) === "aliado").length;
-  const inhabilitados = personas.filter(p => stageOf(p) === "inactivo").length;
-  const enProyectos = new Set(projects.flatMap(pr => (pr.members || []).map(m => m.personaId))).size;
+  const activePersonas = personas.filter(p => stageOf(p) !== "inhabilitado").length;
+  const inhabilitados = personas.filter(p => stageOf(p) === "inhabilitado").length;
   const porRevisar = personas.filter(p => window.hasContactIssue ? window.hasContactIssue(p) : false).length;
+
+  // Stage breakdown
+  const stageActivo = personas.filter(p => stageOf(p) === "activo").length;
+  const stageRevisar = personas.filter(p => stageOf(p) === "revisar").length;
+  const stageInhabilitado = inhabilitados;
+
+  // Entity type counts
+  const entityTypeCounts = {};
+  entities.forEach(e => { entityTypeCounts[e.type] = (entityTypeCounts[e.type] || 0) + 1; });
+  const topEntityTypes = Object.entries(entityTypeCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const maxEntityType = topEntityTypes.length > 0 ? topEntityTypes[0][1] : 1;
+  const ENTITY_LABELS = { iglesia: "Iglesia", ong: "ONG", escuela: "Escuela", universidad: "Universidad", sinagoga: "Sinagoga", estudio: "Estudio", oficina: "Oficina", ministerio: "Ministerio" };
+
+  // Top entities by contact count
+  const entityContactCount = {};
+  personas.forEach(p => (p.entities || []).forEach(e => { entityContactCount[e.id] = (entityContactCount[e.id] || 0) + 1; }));
+  const topEntitiesByCount = entities
+    .map(e => ({ ...e, count: entityContactCount[e.id] || 0 }))
+    .filter(e => e.count > 0).sort((a, b) => b.count - a.count).slice(0, 5);
+  const maxEntityCount = topEntitiesByCount.length > 0 ? topEntitiesByCount[0].count : 1;
+
+  // Overdue tasks with owner names
+  const overdueTasksList = allTasks
+    .filter(tk => !tk.done && tk.due && tk.due < today)
+    .sort((a, b) => a.due.localeCompare(b.due)).slice(0, 5)
+    .map(tk => {
+      let personaName = "";
+      for (const [pid, tasks] of Object.entries(data.tasks || {})) {
+        if (tasks.some(t => t.id === tk.id)) {
+          const p = personas.find(x => x.id === pid);
+          if (p) personaName = fullName(p);
+          break;
+        }
+      }
+      return { ...tk, personaName };
+    });
 
   // Activity last 14 days
   const last14 = Array.from({ length: 14 }, (_, i) => {
@@ -41,56 +101,42 @@ const Home = ({ t, lang, data, go }) => {
   const topCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const maxCity = topCities.length > 0 ? Math.max(...topCities.map(([, c]) => c)) : 1;
 
-  // Recently registered (by lastContact as proxy — sorted desc, show mixed personas+entities)
   const recentlyAdded = [
     ...personas.map(p => ({ type: "persona", item: p, date: p.lastContact || "" })),
     ...data.entities.map(e => ({ type: "entity", item: e, date: e.lastContact || e.founded || "" })),
   ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
 
-  // Upcoming projects (next 30 days)
   const in30 = new Date(); in30.setDate(in30.getDate() + 30);
   const in30str = in30.toISOString().slice(0, 10);
   const upcomingProjects = projects
     .filter(pr => pr.dateStart && pr.dateStart >= today && pr.dateStart <= in30str && pr.status !== "cancelado")
-    .sort((a, b) => a.dateStart.localeCompare(b.dateStart))
-    .slice(0, 5);
+    .sort((a, b) => a.dateStart.localeCompare(b.dateStart)).slice(0, 5);
   const upcomingTasks = allTasks
     .filter(tk => !tk.done && tk.due && tk.due >= today && tk.due <= in30str)
-    .sort((a, b) => a.due.localeCompare(b.due))
-    .slice(0, 3);
+    .sort((a, b) => a.due.localeCompare(b.due)).slice(0, 3);
 
-  // Recent contacts
   const recentPersonas = [...personas]
-    .sort((a, b) => (b.lastContact || "").localeCompare(a.lastContact || ""))
-    .slice(0, 6);
+    .sort((a, b) => (b.lastContact || "").localeCompare(a.lastContact || "")).slice(0, 6);
 
-  // Birthdays this month
   const todayDate = new Date();
   const dayOfYear = (d) => Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
   const todayDOY = dayOfYear(todayDate);
-  const bdays = personas
-    .filter(p => p.birthday)
-    .map(p => {
-      const [, m, d] = p.birthday.split("-").map(n => parseInt(n));
-      const dt = new Date(todayDate.getFullYear(), m - 1, d);
-      let diff = dayOfYear(dt) - todayDOY;
-      if (diff < 0) diff += 365;
-      return { p, diff, dt };
-    })
-    .sort((a, b) => a.diff - b.diff)
-    .slice(0, 5);
+  const bdays = personas.filter(p => p.birthday).map(p => {
+    const [, m, d] = p.birthday.split("-").map(n => parseInt(n));
+    const dt = new Date(todayDate.getFullYear(), m - 1, d);
+    let diff = dayOfYear(dt) - todayDOY;
+    if (diff < 0) diff += 365;
+    return { p, diff, dt };
+  }).sort((a, b) => a.diff - b.diff).slice(0, 5);
 
-  // Goals
   const goals = (data.goals || []).filter(g => !g.archived);
-
   const getProjType = (id) => {
     const types = window.PROJECT_TYPES || [];
     return types.find(t => t.id === id) || { emoji: "📂", color: "#6366f1", label: id };
   };
-
   const stages = window.PIPELINE_STAGES || [];
 
-  const KpiCard = ({ label, value, sub, color, bg, icon, route, delay = 0 }) => (
+  const KpiCard = ({ label, value, sub, color, icon, route, delay = 0 }) => (
     <div className="kpi-card-new" style={{ animationDelay: delay + "ms", cursor: "pointer" }} onClick={() => go({ name: route })}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
         <div style={{ width: 38, height: 38, borderRadius: 10, background: color + "18", display: "grid", placeItems: "center" }}>
@@ -105,9 +151,8 @@ const Home = ({ t, lang, data, go }) => {
 
   return (
     <div style={{ animation: "fadeIn .3s ease-out" }}>
-      {/* PROMEZA Marketing Group Logo Banner */}
+      {/* Banner */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #14532d 100%)", borderRadius: 16, padding: "20px 28px", marginBottom: 20, boxShadow: "0 4px 24px rgba(0,0,0,.18)" }}>
-        {/* Light bulb icon */}
         <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: 14, background: "rgba(163,230,53,.12)", border: "1.5px solid rgba(163,230,53,.3)", display: "grid", placeItems: "center", boxShadow: "0 0 24px rgba(132,204,22,.25)" }}>
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
             <path d="M14 3C9.58 3 6 6.58 6 11c0 2.83 1.4 5.33 3.55 6.88V20a1 1 0 001 1h6.9a1 1 0 001-1v-2.12C20.6 16.33 22 13.83 22 11c0-4.42-3.58-8-8-8z" fill="#a3e635" fillOpacity=".85"/>
@@ -117,12 +162,8 @@ const Home = ({ t, lang, data, go }) => {
           </svg>
         </div>
         <div>
-          <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.01em", color: "#f8fafc", lineHeight: 1.1, fontFamily: "var(--font-sans)" }}>
-            PROME<span style={{ color: "#a3e635" }}>ZA</span>
-          </div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".2em", color: "#a3e635", textTransform: "uppercase", marginTop: 2 }}>
-            Marketing Group
-          </div>
+          <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-.01em", color: "#f8fafc", lineHeight: 1.1 }}>PROME<span style={{ color: "#a3e635" }}>ZA</span></div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".2em", color: "#a3e635", textTransform: "uppercase", marginTop: 2 }}>Marketing Group</div>
         </div>
         <div style={{ flex: 1 }} />
         <div style={{ textAlign: "right" }}>
@@ -137,32 +178,130 @@ const Home = ({ t, lang, data, go }) => {
 
       {/* KPI Row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
-        <KpiCard label="Personas" value={personas.length} sub={activePersonas + " activas"} color="var(--accent)" icon="users" route="personas" delay={0} />
-        <KpiCard label="Entidades" value={entities.length} sub="Organizaciones" color="#0ea5e9" icon="building" route="entities" delay={60} />
-        <KpiCard label="Proyectos" value={projects.length} sub={activeProjects > 0 ? activeProjects + " en curso" : "Sin proyectos activos"} color={activeProjects > 0 ? "#8b5cf6" : "var(--ink-4)"} icon="folder" route="projects" delay={120} />
-        <KpiCard label="Tareas" value={pendingTasks} sub={overdueTasks > 0 ? overdueTasks + " vencidas ⚠" : "Al día"} color={overdueTasks > 0 ? "var(--bad)" : "var(--good)"} icon="check" route="tasks" delay={180} />
-        <KpiCard label="Comprometidos" value={comprometidos} sub={"de " + activePersonas + " activos"} color="#10b981" icon="star" route="pipeline" delay={240} />
+        <KpiCard label={t.home.kpiPersonas} value={personas.length} sub={activePersonas + (lang === "en" ? " active" : " activas")} color="var(--accent)" icon="users" route="personas" delay={0} />
+        <KpiCard label={t.home.kpiEntidades} value={entities.length} sub={lang === "en" ? "Organizations" : "Organizaciones"} color="#0ea5e9" icon="building" route="entities" delay={60} />
+        <KpiCard label={lang === "en" ? "Projects" : "Proyectos"} value={projects.length} sub={activeProjects > 0 ? activeProjects + (lang === "en" ? " active" : " en curso") : (lang === "en" ? "No active projects" : "Sin proyectos activos")} color={activeProjects > 0 ? "#8b5cf6" : "var(--ink-4)"} icon="folder" route="projects" delay={120} />
+        <KpiCard label={lang === "en" ? "Tasks" : "Tareas"} value={pendingTasks} sub={overdueTasks > 0 ? overdueTasks + (lang === "en" ? " overdue ⚠" : " vencidas ⚠") : (lang === "en" ? "Up to date" : "Al día")} color={overdueTasks > 0 ? "var(--bad)" : "var(--good)"} icon="check" route="tasks" delay={180} />
+        <KpiCard label={lang === "en" ? "Active" : "Activos"} value={stageActivo} sub={(lang === "en" ? "of " : "de ") + personas.length + (lang === "en" ? " people" : " personas")} color="#10b981" icon="star" route="pipeline" delay={240} />
       </div>
 
-      {/* Row 2: Contact status + Activity */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 16, marginBottom: 16 }}>
+      {/* Overdue tasks alert */}
+      {overdueTasksList.length > 0 && (
+        <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", marginBottom: 16, animation: "slideUp .3s ease-out" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <Icon name="alert" size={16} style={{ color: "#ef4444" }} />
+            <span style={{ fontWeight: 700, fontSize: 13.5, color: "#991b1b" }}>{overdueTasksList.length} {lang === "en" ? "overdue task" + (overdueTasksList.length !== 1 ? "s" : "") : "tarea" + (overdueTasksList.length !== 1 ? "s" : "") + " vencida" + (overdueTasksList.length !== 1 ? "s" : "")}</span>
+            <button className="btn btn-sm" style={{ marginLeft: "auto", fontSize: 11, background: "#fef2f2", borderColor: "#fecaca", color: "#b91c1c" }} onClick={() => go({ name: "tasks" })}>{lang === "en" ? "View all" : "Ver todas"}</button>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {overdueTasksList.map(tk => (
+              <div key={tk.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 10px", background: "#fff", borderRadius: 7, border: "1px solid #fecaca", fontSize: 12 }}>
+                <Icon name="check" size={11} style={{ color: "#ef4444", flexShrink: 0 }} />
+                <span style={{ fontWeight: 500 }}>{tk.text}</span>
+                {tk.personaName && <span style={{ color: "#b91c1c", fontWeight: 600 }}>· {tk.personaName}</span>}
+                <span style={{ fontFamily: "var(--font-mono)", color: "#ef4444", fontWeight: 700 }}>{fmtDate(tk.due, lang)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-        {/* Contact status */}
+      {/* Row: Donut + Entity types + Top entities */}
+      <div className="dash-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+
+        {/* Stage donut */}
         <div className="card" style={{ animation: "slideUp .35s ease-out" }}>
           <div className="card-head">
-            <div className="card-title">Estado de contactos</div>
-            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "personas" })}>Ver lista →</button>
+            <div className="card-title">{lang === "en" ? "Contact stages" : "Etapas de contacto"}</div>
+            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "pipeline" })}>Pipeline →</button>
+          </div>
+          <div style={{ padding: "12px 16px 16px", display: "flex", alignItems: "center", gap: 16 }}>
+            <DonutChart segments={[
+              { value: stageActivo, color: "#10b981" },
+              { value: stageRevisar, color: "#f59e0b" },
+              { value: stageInhabilitado, color: "#94a3b8" },
+            ]} size={110} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 11 }}>
+              {[
+                { label: lang === "en" ? "Active" : "Activo", value: stageActivo, color: "#10b981" },
+                { label: lang === "en" ? "Review" : "Revisar", value: stageRevisar, color: "#f59e0b" },
+                { label: lang === "en" ? "Disabled" : "Inhabilitado", value: stageInhabilitado, color: "#94a3b8" },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  <div style={{ width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, color: "var(--ink-2)", flex: 1 }}>{s.label}</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: s.color }}>{s.value}</span>
+                  <span style={{ fontSize: 10.5, color: "var(--ink-4)", minWidth: 30, textAlign: "right" }}>
+                    {personas.length > 0 ? Math.round(s.value / personas.length * 100) + "%" : "0%"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Entity type distribution */}
+        <div className="card" style={{ animation: "slideUp .35s ease-out .05s both" }}>
+          <div className="card-head">
+            <div className="card-title">{lang === "en" ? "Entity types" : "Tipos de entidad"}</div>
+            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "entities" })}>{lang === "en" ? "View →" : "Ver →"}</button>
+          </div>
+          <div style={{ padding: "10px 16px 14px" }}>
+            {topEntityTypes.map(([type, count]) => (
+              <div key={type} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 9 }}>
+                <span style={{ fontSize: 11.5, color: "var(--ink-3)", minWidth: 72, textAlign: "right", flexShrink: 0 }}>{ENTITY_LABELS[type] || type}</span>
+                <div style={{ flex: 1, height: 8, background: "var(--line)", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: (count / maxEntityType * 100) + "%", background: "linear-gradient(90deg, #0ea5e9, #6366f1)", borderRadius: 4, transition: "width .6s ease" }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)", minWidth: 22, textAlign: "right" }}>{count}</span>
+              </div>
+            ))}
+            {topEntityTypes.length === 0 && <div style={{ fontSize: 12, color: "var(--ink-4)", textAlign: "center", padding: "24px 0" }}>{lang === "en" ? "No entities" : "Sin entidades"}</div>}
+          </div>
+        </div>
+
+        {/* Top entities by contacts */}
+        <div className="card" style={{ animation: "slideUp .35s ease-out .1s both" }}>
+          <div className="card-head">
+            <div className="card-title">{lang === "en" ? "Top entities" : "Top entidades"}</div>
+            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "entities" })}>{lang === "en" ? "View all →" : "Ver todas →"}</button>
+          </div>
+          <div>
+            {topEntitiesByCount.length === 0
+              ? <div className="empty" style={{ padding: "28px 0", fontSize: 12 }}>{lang === "en" ? "No data" : "Sin datos"}</div>
+              : topEntitiesByCount.map((e, i) => (
+                <div key={e.id} className="hover-row" style={{ animationDelay: (i * 40) + "ms" }} onClick={() => go({ name: "entity", id: e.id })}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: "var(--accent-50)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                    <Icon name="building" size={13} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</div>
+                    <div style={{ height: 4, background: "var(--line)", borderRadius: 2, marginTop: 4, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: (e.count / maxEntityCount * 100) + "%", background: "var(--accent)", borderRadius: 2, transition: "width .6s ease" }} />
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: "var(--accent)", minWidth: 24, textAlign: "right" }}>{e.count}</span>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+
+      {/* Row: Contact status + Activity */}
+      <div className="dash-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 16, marginBottom: 16 }}>
+        <div className="card" style={{ animation: "slideUp .35s ease-out .15s both" }}>
+          <div className="card-head">
+            <div className="card-title">{lang === "en" ? "Contact status" : "Estado de contactos"}</div>
+            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "personas" })}>{lang === "en" ? "View list →" : "Ver lista →"}</button>
           </div>
           <div style={{ padding: "8px 12px 12px" }}>
             {[
-              { label: "Activos", sub: "Con seguimiento vigente", value: activePersonas, color: "var(--good)", icon: "users", route: "personas" },
-              { label: "Inhabilitados", sub: "Archivados o inactivos", value: inhabilitados, color: "var(--ink-4)", icon: "shield", route: "personas" },
-              { label: "Por revisar", sub: "Información de contacto con problemas", value: porRevisar, color: porRevisar > 0 ? "#f59e0b" : "var(--good)", icon: "alert", route: "personas" },
+              { label: lang === "en" ? "Active" : "Activos", sub: lang === "en" ? "With active follow-up" : "Con seguimiento vigente", value: activePersonas, color: "var(--good)", icon: "users" },
+              { label: lang === "en" ? "Disabled" : "Inhabilitados", sub: lang === "en" ? "Archived or inactive" : "Archivados o inactivos", value: inhabilitados, color: "var(--ink-4)", icon: "shield" },
+              { label: lang === "en" ? "Under review" : "Por revisar", sub: lang === "en" ? "Information with issues" : "Información con problemas", value: porRevisar, color: porRevisar > 0 ? "#f59e0b" : "var(--good)", icon: "alert" },
             ].map((row, i) => (
-              <div key={row.label}
-                className="status-row-card"
-                style={{ animationDelay: (i * 60) + "ms" }}
-                onClick={() => go({ name: row.route || "personas" })}>
+              <div key={row.label} className="status-row-card" style={{ animationDelay: (i * 60) + "ms" }} onClick={() => go({ name: "personas" })}>
                 <div style={{ width: 36, height: 36, borderRadius: 9, background: row.color + "15", display: "grid", placeItems: "center", flexShrink: 0 }}>
                   <Icon name={row.icon} size={16} />
                 </div>
@@ -176,11 +315,10 @@ const Home = ({ t, lang, data, go }) => {
           </div>
         </div>
 
-        {/* Activity + cities */}
-        <div className="card" style={{ animation: "slideUp .35s ease-out .05s both" }}>
+        <div className="card" style={{ animation: "slideUp .35s ease-out .2s both" }}>
           <div className="card-head">
-            <div className="card-title">Actividad — últimos 14 días</div>
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--accent)", background: "var(--accent-50)", padding: "2px 8px", borderRadius: 6 }}>{totalActivity} registros</span>
+            <div className="card-title">{lang === "en" ? "Activity — last 14 days" : "Actividad — últimos 14 días"}</div>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--accent)", background: "var(--accent-50)", padding: "2px 8px", borderRadius: 6 }}>{totalActivity} {lang === "en" ? "records" : "registros"}</span>
           </div>
           <div style={{ padding: "12px 16px 4px" }}>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
@@ -191,14 +329,7 @@ const Home = ({ t, lang, data, go }) => {
                 const dayLabel = new Date(d + "T12:00:00").getDate();
                 return (
                   <div key={d} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }} title={d + ": " + v + " eventos"}>
-                    <div style={{
-                      width: "100%", height: h,
-                      background: isToday ? "var(--accent)" : v > 0 ? "var(--accent-100)" : "var(--line)",
-                      borderRadius: "4px 4px 0 0",
-                      transition: "height .6s cubic-bezier(.34,1.56,.64,1)",
-                      transitionDelay: (i * 20) + "ms",
-                      boxShadow: isToday ? "0 0 8px rgba(79,70,229,.4)" : "none",
-                    }} />
+                    <div style={{ width: "100%", height: h, background: isToday ? "var(--accent)" : v > 0 ? "var(--accent-100)" : "var(--line)", borderRadius: "4px 4px 0 0", transition: "height .6s cubic-bezier(.34,1.56,.64,1)", transitionDelay: (i * 20) + "ms", boxShadow: isToday ? "0 0 8px rgba(79,70,229,.4)" : "none" }} />
                     {(i === 0 || i === 6 || i === 13) && <span style={{ fontSize: 9, color: "var(--ink-4)" }}>{dayLabel}</span>}
                   </div>
                 );
@@ -206,11 +337,10 @@ const Home = ({ t, lang, data, go }) => {
             </div>
           </div>
           <div style={{ padding: "10px 16px 14px" }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 7 }}>Recién registrados</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 7 }}>{lang === "en" ? "Recently added" : "Recién registrados"}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
               {recentlyAdded.map(({ type, item }, i) => (
-                <div key={item.id}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", animation: "slideUp .3s ease-out both", animationDelay: (100 + i * 40) + "ms" }}
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", animation: "slideUp .3s ease-out both", animationDelay: (100 + i * 40) + "ms" }}
                   onClick={() => go({ name: type === "persona" ? "person" : "entity", id: item.id })}>
                   {type === "persona"
                     ? <div className="av-circle" style={{ background: item.color, width: 26, height: 26, fontSize: 9, flexShrink: 0 }}>{initials(fullName(item))}</div>
@@ -225,43 +355,40 @@ const Home = ({ t, lang, data, go }) => {
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 9 }}>Top ciudades</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 9 }}>{lang === "en" ? "Top cities" : "Top ciudades"}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "5px 14px" }}>
               {topCities.map(([city, count], i) => (
-                <div key={city} style={{ display: "flex", alignItems: "center", gap: 6, animation: "slideUp .3s ease-out both", animationDelay: (200 + i * 40) + "ms" }}>
-                  <div style={{ height: 5, borderRadius: 3, background: "linear-gradient(90deg, var(--accent), #818cf8)", width: Math.max(4, Math.round(count / maxCity * 50)), flexShrink: 0, transition: "width .5s ease" }} />
+                <div key={city} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ height: 5, borderRadius: 3, background: "linear-gradient(90deg, var(--accent), #818cf8)", width: Math.max(4, Math.round(count / maxCity * 50)), flexShrink: 0 }} />
                   <span style={{ fontSize: 11.5, color: "var(--ink-2)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{city}</span>
                   <span style={{ fontSize: 11, color: "var(--ink-4)" }}>{count}</span>
                 </div>
               ))}
-              {topCities.length === 0 && <span style={{ fontSize: 12, color: "var(--ink-4)" }}>Sin datos de ciudad</span>}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Row 3: Map + Upcoming + Birthdays */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
-        <div className="card" style={{ animation: "slideUp .35s ease-out .1s both" }}>
+      {/* Row: Map + Upcoming + Birthdays */}
+      <div className="dash-grid-map" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+        <div className="card" style={{ animation: "slideUp .35s ease-out .25s both" }}>
           <div className="card-head">
             <div className="card-title">{t.home.coverageMap}</div>
-            <div className="card-meta">{personas.length + entities.length} registros</div>
+            <div className="card-meta">{personas.length + entities.length} {lang === "en" ? "records" : "registros"}</div>
           </div>
           <div style={{ height: 268 }}>
             <MiniMap personas={personas} entities={entities} go={go} />
           </div>
         </div>
 
-        {/* Upcoming */}
-        <div className="card" style={{ animation: "slideUp .35s ease-out .15s both" }}>
+        <div className="card" style={{ animation: "slideUp .35s ease-out .3s both" }}>
           <div className="card-head">
-            <div className="card-title">Próximos 30 días</div>
-            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "calendar" })}>Calendario →</button>
+            <div className="card-title">{lang === "en" ? "Next 30 days" : "Próximos 30 días"}</div>
+            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "calendar" })}>{lang === "en" ? "Calendar →" : "Calendario →"}</button>
           </div>
-          {upcomingProjects.length === 0 && upcomingTasks.length === 0 ? (
-            <div className="empty" style={{ padding: "32px 0", fontSize: 12 }}>Sin eventos próximos</div>
-          ) : (
-            <div>
+          {upcomingProjects.length === 0 && upcomingTasks.length === 0
+            ? <div className="empty" style={{ padding: "32px 0", fontSize: 12 }}>{lang === "en" ? "No upcoming events" : "Sin eventos próximos"}</div>
+            : <div>
               {upcomingProjects.map((pr, i) => {
                 const pt = getProjType(pr.type);
                 const daysUntil = Math.round((new Date(pr.dateStart + "T12:00:00") - new Date(today + "T12:00:00")) / 86400000);
@@ -272,7 +399,7 @@ const Home = ({ t, lang, data, go }) => {
                       <div style={{ fontWeight: 600, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pr.name}</div>
                       <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{fmtDate(pr.dateStart, lang)}</div>
                     </div>
-                    <span className="day-badge" style={{ background: pt.color + "15", color: pt.color }}>{daysUntil === 0 ? "Hoy" : "+" + daysUntil + "d"}</span>
+                    <span className="day-badge" style={{ background: pt.color + "15", color: pt.color }}>{daysUntil === 0 ? (lang === "en" ? "Today" : "Hoy") : "+" + daysUntil + "d"}</span>
                   </div>
                 );
               })}
@@ -288,9 +415,7 @@ const Home = ({ t, lang, data, go }) => {
                 const daysUntil = Math.round((new Date(tk.due + "T12:00:00") - new Date(today + "T12:00:00")) / 86400000);
                 return (
                   <div key={tk.id} className="hover-row" style={{ animationDelay: ((upcomingProjects.length + i) * 50) + "ms" }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 8, background: "#f59e0b18", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                      <Icon name="check" size={13} />
-                    </div>
+                    <div style={{ width: 30, height: 30, borderRadius: 8, background: "#f59e0b18", display: "grid", placeItems: "center", flexShrink: 0 }}><Icon name="check" size={13} /></div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tk.text}</div>
                       {ownerName && <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{ownerName}</div>}
@@ -300,29 +425,22 @@ const Home = ({ t, lang, data, go }) => {
                 );
               })}
             </div>
-          )}
+          }
         </div>
 
-        {/* Birthdays */}
-        <div className="card" style={{ animation: "slideUp .35s ease-out .2s both" }}>
-          <div className="card-head">
-            <div className="card-title">{t.home.upcomingBdays}</div>
-          </div>
+        <div className="card" style={{ animation: "slideUp .35s ease-out .35s both" }}>
+          <div className="card-head"><div className="card-title">{t.home.upcomingBdays}</div></div>
           {bdays.length === 0
-            ? <div className="empty" style={{ padding: "32px 0", fontSize: 12 }}>Sin cumpleaños registrados</div>
+            ? <div className="empty" style={{ padding: "32px 0", fontSize: 12 }}>{lang === "en" ? "No birthdays registered" : "Sin cumpleaños registrados"}</div>
             : bdays.map(({ p, dt, diff }, i) => (
-              <div key={p.id} className="hover-row" style={{ animationDelay: (i * 60) + "ms" }}
-                onClick={() => go({ name: "person", id: p.id })}>
+              <div key={p.id} className="hover-row" style={{ animationDelay: (i * 60) + "ms" }} onClick={() => go({ name: "person", id: p.id })}>
                 <div className="av-circle" style={{ background: p.color, flexShrink: 0 }}>{initials(fullName(p))}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fullName(p)}</div>
                   <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{dt.toLocaleDateString(lang === "en" ? "en-US" : "es-ES", { day: "numeric", month: "short" })}</div>
                 </div>
-                <span className="day-badge" style={{
-                  background: diff === 0 ? "#ef444415" : diff <= 7 ? "#f59e0b15" : "var(--bg-soft)",
-                  color: diff === 0 ? "var(--bad)" : diff <= 7 ? "#f59e0b" : "var(--ink-3)",
-                }}>
-                  {diff === 0 ? "Hoy" : "+" + diff + "d"}
+                <span className="day-badge" style={{ background: diff === 0 ? "#ef444415" : diff <= 7 ? "#f59e0b15" : "var(--bg-soft)", color: diff === 0 ? "var(--bad)" : diff <= 7 ? "#f59e0b" : "var(--ink-3)" }}>
+                  {diff === 0 ? (lang === "en" ? "Today" : "Hoy") : "+" + diff + "d"}
                 </span>
               </div>
             ))
@@ -330,25 +448,24 @@ const Home = ({ t, lang, data, go }) => {
         </div>
       </div>
 
-      {/* Row 4: Recent contacts + Goals */}
-      <div style={{ display: "grid", gridTemplateColumns: goals.length > 0 ? "1.2fr 1fr" : "1fr", gap: 16 }}>
-        <div className="card" style={{ animation: "slideUp .35s ease-out .25s both" }}>
+      {/* Row: Recent contacts */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+        <div className="card" style={{ animation: "slideUp .35s ease-out .4s both" }}>
           <div className="card-head">
-            <div className="card-title">Contactos recientes</div>
-            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "personas" })}>Ver todos →</button>
+            <div className="card-title">{lang === "en" ? "Recent contacts" : "Contactos recientes"}</div>
+            <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "personas" })}>{lang === "en" ? "View all →" : "Ver todos →"}</button>
           </div>
           <div>
             {recentPersonas.map((p, i) => {
               const stage = stages.find(s => s.id === stageOf(p));
               return (
-                <div key={p.id} className="hover-row" style={{ animationDelay: (i * 40) + "ms" }}
-                  onClick={() => go({ name: "person", id: p.id })}>
+                <div key={p.id} className="hover-row" style={{ animationDelay: (i * 40) + "ms" }} onClick={() => go({ name: "person", id: p.id })}>
                   <div className="av-circle" style={{ background: p.color, flexShrink: 0 }}>{initials(fullName(p))}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{fullName(p)}</div>
                     <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{fmtRole(p.role, t)}{p.city ? " · " + p.city : ""}</div>
                   </div>
-                  {stage && <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: stage.color + "14", color: stage.color, whiteSpace: "nowrap", flexShrink: 0 }}>{stage.label}</span>}
+                  {stage && <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: stage.color + "14", color: stage.color, whiteSpace: "nowrap", flexShrink: 0 }}>{window.stageLabel ? window.stageLabel(stage.id, lang) : stage.label}</span>}
                   <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-4)", flexShrink: 0, minWidth: 60, textAlign: "right" }}>{fmtDate(p.lastContact, lang)}</div>
                 </div>
               );
@@ -356,43 +473,6 @@ const Home = ({ t, lang, data, go }) => {
           </div>
         </div>
 
-        {goals.length > 0 && (
-          <div className="card" style={{ animation: "slideUp .35s ease-out .3s both" }}>
-            <div className="card-head">
-              <div className="card-title">Metas activas</div>
-              <button className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => go({ name: "goals" })}>Ver todas →</button>
-            </div>
-            <div className="card-pad">
-              {goals.slice(0, 4).map((g, i) => {
-                const GOAL_METRICS = window.GOAL_METRICS || [];
-                const metric = GOAL_METRICS.find(m => m.id === g.metric);
-                const current = metric ? metric.compute(data) : 0;
-                const pct = Math.min(100, Math.round(current / Math.max(1, g.target) * 100));
-                const done = pct >= 100;
-                const barColor = done ? "var(--good)" : pct >= 75 ? "var(--accent)" : pct >= 50 ? "#f59e0b" : "#ef4444";
-                const isPast = g.deadline && g.deadline < today;
-                return (
-                  <div key={g.id} style={{ marginBottom: 16, animation: "slideUp .3s ease-out both", animationDelay: (i * 60) + "ms" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                      <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)" }}>{g.title}</span>
-                      {done
-                        ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--good)" }}>✓ Meta lograda</span>
-                        : <span style={{ fontSize: 11, fontWeight: 700, color: isPast ? "var(--bad)" : "var(--ink-3)" }}>{pct}%</span>
-                      }
-                    </div>
-                    <div style={{ height: 7, background: "var(--bg-soft)", borderRadius: 4, overflow: "hidden", marginBottom: 4 }}>
-                      <div style={{ height: "100%", width: pct + "%", background: barColor, borderRadius: 4, transition: "width .8s cubic-bezier(.34,1.56,.64,1)" }} />
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--ink-4)", display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontFamily: "var(--font-mono)" }}>{current.toLocaleString()} / {g.target.toLocaleString()}</span>
-                      {g.deadline && <span style={{ color: isPast ? "var(--bad)" : "var(--ink-4)" }}>{fmtDate(g.deadline, lang)}</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

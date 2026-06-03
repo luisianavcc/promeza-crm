@@ -95,4 +95,9 @@ window.exportCSV = (filename, headers, rows) => {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+  // Audit log
+  const session = window.getSession?.();
+  if (window.AIRTABLE?.logAccess && session?.email) {
+    window.AIRTABLE.logAccess(session.email, "Descarga CSV", filename);
+  }
 };

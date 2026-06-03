@@ -53,8 +53,10 @@ const getMSALConfig = () => {
 
 const buildMSALInstance = (cfg) => {
   if (!cfg.clientId || !cfg.tenantId) return null;
+  const msalLib = window.msal || window.msalBrowser;
+  if (!msalLib) { console.error("MSAL library not loaded"); return null; }
   try {
-    return new msal.PublicClientApplication({
+    return new msalLib.PublicClientApplication({
       auth: {
         clientId: cfg.clientId,
         authority: `https://login.microsoftonline.com/${cfg.tenantId}`,
@@ -62,7 +64,7 @@ const buildMSALInstance = (cfg) => {
       },
       cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false },
     });
-  } catch { return null; }
+  } catch (e) { console.error("MSAL init error:", e); return null; }
 };
 
 window.CryptoUtils = {
@@ -142,8 +144,10 @@ const AuthScreen = ({ onLogin }) => {
     setError("");
     try {
       const cfg = getMSALConfig();
+      const msalLib = window.msal || window.msalBrowser;
+      if (!msalLib) { setError("Error: librería MSAL no cargó. Recarga la página (Ctrl+Shift+R)."); setLoading(false); return; }
       const msalInstance = buildMSALInstance(cfg);
-      if (!msalInstance) { setError("Error de configuración."); setLoading(false); return; }
+      if (!msalInstance) { setError("Error de configuración (clientId/tenantId inválido)."); setLoading(false); return; }
 
       const response = await msalInstance.loginPopup({
         scopes: ["User.Read", "openid", "profile", "email"],
@@ -170,10 +174,15 @@ const AuthScreen = ({ onLogin }) => {
       const key = await deriveSharedKey(cfg.clientId, cfg.tenantId, cfg.extraKey || "");
       await storeSessionKey(key);
       saveSession(email);
+      if (window.AIRTABLE) window.AIRTABLE.logAccess(email, "Inicio de sesión");
       onLogin(email);
     } catch (err) {
-      if (!err.errorCode?.includes("cancelled") && !err.message?.includes("cancelled")) {
-        setError("Error al iniciar sesión: " + (err.message || err.errorCode || "Inténtalo de nuevo."));
+      console.error("MSAL login error:", err);
+      const cancelled = err.errorCode?.includes("cancelled") || err.message?.includes("cancelled") || err.errorCode?.includes("user_cancelled");
+      if (!cancelled) {
+        const code = err.errorCode || err.name || "";
+        const msg = err.message || "Inténtalo de nuevo.";
+        setError(`Error: ${code ? "[" + code + "] " : ""}${msg}`);
       }
     }
     setLoading(false);
@@ -219,7 +228,7 @@ const UnlockScreen = ({ email, onUnlock, onLogout }) => {
     setError("");
     try {
       const msalInstance = buildMSALInstance(cfg);
-      if (!msalInstance) { setError("Error de configuración."); setLoading(false); return; }
+      if (!msalInstance) { setError("Error de configuración (clientId/tenantId inválido)."); setLoading(false); return; }
 
       let account = null;
       try {

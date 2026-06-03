@@ -21,10 +21,10 @@ const GOAL_METRICS = [
       ).length,
   },
   {
-    id: "comprometidos",
-    label: "Personas comprometidas (aliados)",
+    id: "activos_stage",
+    label: "Personas activas",
     icon: "⭐",
-    compute: (data) => data.personas.filter((p) => p.stage === "aliado").length,
+    compute: (data) => data.personas.filter((p) => p.stage === "activo").length,
   },
   {
     id: "en_proceso",
