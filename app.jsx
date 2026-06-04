@@ -551,23 +551,21 @@ const App = () => {
   };
 
   const [atSyncing, setAtSyncing] = useState(false);
+  const [atSyncMsg, setAtSyncMsg] = useState(null); // { type:"ok"|"warn"|"err", text }
 
-  const mergeFromAirtable = (atData, prev) => {
+  const mergeFromAirtable = (atData, prev, prevLastLoad = "") => {
     if (!atData || !prev) return prev;
-    // lastLoad = when we last successfully pulled from Airtable
-    // If a record was locally saved AFTER that moment, the local version is newer → keep it
-    const lastLoad = window.AIRTABLE.getLastLoad() || "";
+    // prevLastLoad = BEFORE this fetch started — edits after that moment are "newer than Airtable"
     const atPersonaMap = new Map(atData.personas.map(p => [p.id, p]));
     const atEntityMap = new Map(atData.entities.map(e => [e.id, e]));
 
     const mergedPersonas = prev.personas.map(local => {
       const remote = atPersonaMap.get(local.id);
-      if (!remote) return local; // only exists locally, keep
-      // Local was modified after last load → local wins (but grab _atId from remote)
-      if (local._localSavedAt && local._localSavedAt > lastLoad) {
+      if (!remote) return local;
+      if (local._localSavedAt && local._localSavedAt > prevLastLoad) {
         return { ...local, _atId: remote._atId || local._atId };
       }
-      return remote; // Airtable version is authoritative
+      return remote;
     });
     const localPersonaIds = new Set(prev.personas.map(p => p.id));
     const remoteOnlyPersonas = atData.personas.filter(p => !localPersonaIds.has(p.id));
@@ -575,7 +573,7 @@ const App = () => {
     const mergedEntities = prev.entities.map(local => {
       const remote = atEntityMap.get(local.id);
       if (!remote) return local;
-      if (local._localSavedAt && local._localSavedAt > lastLoad) {
+      if (local._localSavedAt && local._localSavedAt > prevLastLoad) {
         return { ...local, _atId: remote._atId || local._atId };
       }
       return remote;
@@ -592,11 +590,19 @@ const App = () => {
 
   const syncFromAirtable = () => {
     setAtSyncing(true);
+    // Snapshot prevLastLoad BEFORE fetching so local edits made before now survive the merge
+    const prevLastLoad = window.AIRTABLE.getLastLoad() || "";
     window.AIRTABLE.loadData().then(atData => {
       if (atData && (atData.personas.length > 0 || atData.entities.length > 0)) {
-        setData(prev => mergeFromAirtable(atData, prev));
+        setData(prev => mergeFromAirtable(atData, prev, prevLastLoad));
+        setAtSyncMsg({ type: "ok", text: "↓ " + atData.personas.length + " personas · " + atData.entities.length + " entidades recibidas de Airtable" });
+      } else if (atData) {
+        setAtSyncMsg({ type: "warn", text: "Airtable vacío — haz 'Sincronizar todo' desde la MacBook primero" });
       }
-    }).catch(console.warn).finally(() => setAtSyncing(false));
+    }).catch(e => {
+      setAtSyncMsg({ type: "err", text: "Error Airtable: " + e.message });
+      console.warn("syncFromAirtable error:", e);
+    }).finally(() => setAtSyncing(false));
   };
 
   useEffect(() => {
@@ -1319,6 +1325,16 @@ const App = () => {
         atSyncing={atSyncing}
         onSyncNow={syncFromAirtable}
       />
+      {atSyncMsg && (
+        <div onClick={() => setAtSyncMsg(null)} style={{
+          position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)",
+          background: atSyncMsg.type === "ok" ? "#166534" : atSyncMsg.type === "warn" ? "#92400e" : "#991b1b",
+          color: "#fff", padding: "8px 18px", borderRadius: 20, fontSize: 12.5, fontWeight: 500,
+          zIndex: 9999, cursor: "pointer", boxShadow: "0 2px 12px rgba(0,0,0,.25)", maxWidth: "90vw", textAlign: "center",
+        }}>
+          {atSyncMsg.text}
+        </div>
+      )}
       <main className="main">{view}</main>
 
       {modal === "new-person" && (
