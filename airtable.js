@@ -3,6 +3,7 @@
 window.AIRTABLE = (function () {
   const CONFIG_KEY = "promeza_airtable_config";
   const LAST_SYNC_KEY = "promeza_last_sync";
+  const LAST_LOAD_KEY = "promeza_last_load";
 
   const DEFAULT_PERSONAS_TABLE = "PERSONAS PROMEZA CRM";
   const DEFAULT_ENTIDADES_TABLE = "ENTIDADES PROMEZA CRM";
@@ -29,6 +30,7 @@ window.AIRTABLE = (function () {
   const saveConfig = (cfg) => localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
 
   const getLastSync = () => localStorage.getItem(LAST_SYNC_KEY) || null;
+  const getLastLoad = () => localStorage.getItem(LAST_LOAD_KEY) || null;
 
   const req = async (method, url, body, pat) => {
     const res = await fetch(url, {
@@ -402,6 +404,7 @@ window.AIRTABLE = (function () {
       // Deduplicate by CRM_ID (keep last, which is the most recently written record)
       const pMap = new Map(); personas.forEach(p => pMap.set(p.id, p));
       const eMap = new Map(); entities.forEach(e => eMap.set(e.id, e));
+      localStorage.setItem(LAST_LOAD_KEY, new Date().toISOString());
       return { personas: [...pMap.values()], entities: [...eMap.values()] };
     } catch (err) {
       console.warn("Airtable loadData error:", err);
@@ -458,17 +461,21 @@ window.AIRTABLE = (function () {
     try {
       if (atId) {
         await req("PATCH", url, { records: [{ id: atId, fields: tryFields(true) }] }, cfg.pat);
+        return atId;
       } else {
-        await req("POST", url, { records: [{ fields: tryFields(true) }] }, cfg.pat);
+        const res = await req("POST", url, { records: [{ fields: tryFields(true) }] }, cfg.pat);
+        return res.records && res.records[0] && res.records[0].id;
       }
     } catch {
       try {
         if (atId) {
           await req("PATCH", url, { records: [{ id: atId, fields: humanFields }] }, cfg.pat);
+          return atId;
         } else {
-          await req("POST", url, { records: [{ fields: humanFields }] }, cfg.pat);
+          const res = await req("POST", url, { records: [{ fields: humanFields }] }, cfg.pat);
+          return res.records && res.records[0] && res.records[0].id;
         }
-      } catch (e2) { console.warn("savePersona failed:", e2); }
+      } catch (e2) { console.warn("savePersona failed:", e2); return null; }
     }
   };
 
@@ -516,17 +523,21 @@ window.AIRTABLE = (function () {
     try {
       if (atId) {
         await req("PATCH", url, { records: [{ id: atId, fields: tryFields(true) }] }, cfg.pat);
+        return atId;
       } else {
-        await req("POST", url, { records: [{ fields: tryFields(true) }] }, cfg.pat);
+        const res = await req("POST", url, { records: [{ fields: tryFields(true) }] }, cfg.pat);
+        return res.records && res.records[0] && res.records[0].id;
       }
     } catch {
       try {
         if (atId) {
           await req("PATCH", url, { records: [{ id: atId, fields: humanFields }] }, cfg.pat);
+          return atId;
         } else {
-          await req("POST", url, { records: [{ fields: humanFields }] }, cfg.pat);
+          const res = await req("POST", url, { records: [{ fields: humanFields }] }, cfg.pat);
+          return res.records && res.records[0] && res.records[0].id;
         }
-      } catch (e2) { console.warn("saveEntity failed:", e2); }
+      } catch (e2) { console.warn("saveEntity failed:", e2); return null; }
     }
   };
 
@@ -542,5 +553,5 @@ window.AIRTABLE = (function () {
     } catch (err) { console.warn("deleteRecord failed:", err); }
   };
 
-  return { getConfig, saveConfig, getLastSync, syncAll, loadData, savePersona, saveEntity, deleteRecord, logAccess, getAccessLog, DEFAULT_PERSONAS_TABLE, DEFAULT_ENTIDADES_TABLE };
+  return { getConfig, saveConfig, getLastSync, getLastLoad, syncAll, loadData, savePersona, saveEntity, deleteRecord, logAccess, getAccessLog, DEFAULT_PERSONAS_TABLE, DEFAULT_ENTIDADES_TABLE };
 })();

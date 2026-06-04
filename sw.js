@@ -1,4 +1,4 @@
-const CACHE = "promeza-v37";
+const CACHE = "promeza-v38";
 const ASSETS = [
   "./", "./index.html", "./styles.css",
   "./data.js", "./i18n.js", "./airtable.js",

@@ -554,14 +554,39 @@ const App = () => {
 
   const mergeFromAirtable = (atData, prev) => {
     if (!atData || !prev) return prev;
-    const atPersonaIds = new Set(atData.personas.map(p => p.id));
-    const atEntityIds = new Set(atData.entities.map(e => e.id));
-    const localOnlyPersonas = prev.personas.filter(p => !atPersonaIds.has(p.id));
-    const localOnlyEntities = prev.entities.filter(e => !atEntityIds.has(e.id));
+    // lastLoad = when we last successfully pulled from Airtable
+    // If a record was locally saved AFTER that moment, the local version is newer → keep it
+    const lastLoad = window.AIRTABLE.getLastLoad() || "";
+    const atPersonaMap = new Map(atData.personas.map(p => [p.id, p]));
+    const atEntityMap = new Map(atData.entities.map(e => [e.id, e]));
+
+    const mergedPersonas = prev.personas.map(local => {
+      const remote = atPersonaMap.get(local.id);
+      if (!remote) return local; // only exists locally, keep
+      // Local was modified after last load → local wins (but grab _atId from remote)
+      if (local._localSavedAt && local._localSavedAt > lastLoad) {
+        return { ...local, _atId: remote._atId || local._atId };
+      }
+      return remote; // Airtable version is authoritative
+    });
+    const localPersonaIds = new Set(prev.personas.map(p => p.id));
+    const remoteOnlyPersonas = atData.personas.filter(p => !localPersonaIds.has(p.id));
+
+    const mergedEntities = prev.entities.map(local => {
+      const remote = atEntityMap.get(local.id);
+      if (!remote) return local;
+      if (local._localSavedAt && local._localSavedAt > lastLoad) {
+        return { ...local, _atId: remote._atId || local._atId };
+      }
+      return remote;
+    });
+    const localEntityIds = new Set(prev.entities.map(e => e.id));
+    const remoteOnlyEntities = atData.entities.filter(e => !localEntityIds.has(e.id));
+
     return {
       ...prev,
-      personas: [...atData.personas, ...localOnlyPersonas],
-      entities: [...atData.entities, ...localOnlyEntities],
+      personas: [...mergedPersonas, ...remoteOnlyPersonas],
+      entities: [...mergedEntities, ...remoteOnlyEntities],
     };
   };
 
@@ -793,6 +818,7 @@ const App = () => {
       birthday: form.birthday, lastContact: form.lastContact,
       color,
       uid: computeUID(id),
+      _localSavedAt: new Date().toISOString(),
     };
     const createdAt = new Date().toISOString();
     setData(d => {
@@ -804,7 +830,9 @@ const App = () => {
       next.changelog = { ...(next.changelog || {}), [id]: [{ id: "cl" + id, date: createdAt, author: userEmail || "Usuario", changes: [{ field: "record", type: "created" }] }] };
       return next;
     });
-    window.AIRTABLE.savePersona(newP, data.entities).catch(console.warn);
+    window.AIRTABLE.savePersona(newP, data.entities)
+      .then(atId => { if (atId) setData(d => ({ ...d, personas: d.personas.map(p => p.id === id ? { ...p, _atId: atId } : p) })); })
+      .catch(console.warn);
     setModal(null);
     setRoute({ name: "person", id });
   };
@@ -821,6 +849,7 @@ const App = () => {
       size: form.size ? parseInt(form.size) : null,
       founded: form.founded, parent: form.parent || null,
       tags, status: "activo", uid: computeUID(id),
+      _localSavedAt: new Date().toISOString(),
     };
     const createdAtE = new Date().toISOString();
     setData(d => {
@@ -828,7 +857,9 @@ const App = () => {
       next.changelog = { ...(next.changelog || {}), [id]: [{ id: "cl" + id, date: createdAtE, author: userEmail || "Usuario", changes: [{ field: "record", type: "created" }] }] };
       return next;
     });
-    window.AIRTABLE.saveEntity(newE, data.entities).catch(console.warn);
+    window.AIRTABLE.saveEntity(newE, data.entities)
+      .then(atId => { if (atId) setData(d => ({ ...d, entities: d.entities.map(e => e.id === id ? { ...e, _atId: atId } : e) })); })
+      .catch(console.warn);
     setModal(null);
     setRoute({ name: "entity", id });
   };
@@ -851,8 +882,9 @@ const App = () => {
   };
 
   const handleUpdatePerson = (id, updates) => {
+    const localSavedAt = new Date().toISOString();
     const current = data.personas.find(p => p.id === id);
-    const updated = current ? { ...current, ...updates } : null;
+    const updated = current ? { ...current, ...updates, _localSavedAt: localSavedAt } : null;
     setData(d => {
       const old = d.personas.find(p => p.id === id);
       const changes = old ? computeChanges(old, updates, PERSON_FIELD_LABELS) : [];
@@ -860,14 +892,19 @@ const App = () => {
         ...d.changelog,
         [id]: [{ id: "cl" + Date.now(), date: new Date().toISOString(), author: userEmail || "Usuario", changes }, ...(d.changelog[id] || [])],
       } : d.changelog;
-      return { ...d, personas: d.personas.map(p => p.id === id ? { ...p, ...updates } : p), changelog: cl };
+      return { ...d, personas: d.personas.map(p => p.id === id ? { ...p, ...updates, _localSavedAt: localSavedAt } : p), changelog: cl };
     });
-    if (updated) window.AIRTABLE.savePersona(updated, data.entities).catch(console.warn);
+    if (updated) {
+      window.AIRTABLE.savePersona(updated, data.entities)
+        .then(atId => { if (atId) setData(d => ({ ...d, personas: d.personas.map(p => p.id === id ? { ...p, _atId: atId } : p) })); })
+        .catch(console.warn);
+    }
   };
 
   const handleUpdateEntity = (id, updates) => {
+    const localSavedAt = new Date().toISOString();
     const current = data.entities.find(e => e.id === id);
-    const updated = current ? { ...current, ...updates } : null;
+    const updated = current ? { ...current, ...updates, _localSavedAt: localSavedAt } : null;
     setData(d => {
       const old = d.entities.find(e => e.id === id);
       const changes = old ? computeChanges(old, updates, ENTITY_FIELD_LABELS) : [];
@@ -875,9 +912,13 @@ const App = () => {
         ...d.changelog,
         [id]: [{ id: "cl" + Date.now(), date: new Date().toISOString(), author: userEmail || "Usuario", changes }, ...(d.changelog[id] || [])],
       } : d.changelog;
-      return { ...d, entities: d.entities.map(e => e.id === id ? { ...e, ...updates } : e), changelog: cl };
+      return { ...d, entities: d.entities.map(e => e.id === id ? { ...e, ...updates, _localSavedAt: localSavedAt } : e), changelog: cl };
     });
-    if (updated) window.AIRTABLE.saveEntity(updated, data.entities).catch(console.warn);
+    if (updated) {
+      window.AIRTABLE.saveEntity(updated, data.entities)
+        .then(atId => { if (atId) setData(d => ({ ...d, entities: d.entities.map(e => e.id === id ? { ...e, _atId: atId } : e) })); })
+        .catch(console.warn);
+    }
   };
 
   const handleEditPerson = (id) => { setEditingId(id); setModal("edit-person"); };
