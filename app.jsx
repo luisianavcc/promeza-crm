@@ -4,7 +4,7 @@ const { useState, useMemo, useEffect, useRef } = React;
 
 // ─── Settings Modal ───
 
-const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout, onRestoreData }) => {
+const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout, onRestoreData, onForcePull }) => {
   const [ejsCfg, setEjsCfg] = useState(() => {
     try { return JSON.parse(localStorage.getItem("promeza_ejs")) || {}; } catch { return {}; }
   });
@@ -200,9 +200,18 @@ const SettingsModal = ({ t, lang, data, cryptoKey, onClose, onLogout, onRestoreD
                   {syncStatus}
                 </div>
               )}
-              <button className="btn btn-primary" style={{ width: "100%" }} disabled={syncing} onClick={doSync}>
-                <Icon name="sync" /> {syncing ? (st.syncing || "Sincronizando…") : (st.sync || "Sincronizar todo a Airtable")}
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button className="btn btn-primary" style={{ width: "100%" }} disabled={syncing} onClick={doSync}>
+                  <Icon name="sync" /> {syncing ? "Enviando…" : "⬆ Enviar mis datos a Airtable"}
+                </button>
+                <button className="btn" style={{ width: "100%", fontWeight: 600 }} disabled={syncing} onClick={() => { if (onForcePull) { onClose(); onForcePull(); } }}>
+                  ⬇ Recibir cambios de Airtable
+                </button>
+                <div style={{ fontSize: 11, color: "var(--ink-4)", lineHeight: 1.5, padding: "4px 2px" }}>
+                  <strong>⬆ Enviar</strong> = sube TUS datos a Airtable (hazlo desde la MacBook).<br/>
+                  <strong>⬇ Recibir</strong> = descarga lo que hay en Airtable (hazlo desde Windows).
+                </div>
+              </div>
             </div>
           )}
 
@@ -590,18 +599,46 @@ const App = () => {
 
   const syncFromAirtable = () => {
     setAtSyncing(true);
-    // Snapshot prevLastLoad BEFORE fetching so local edits made before now survive the merge
     const prevLastLoad = window.AIRTABLE.getLastLoad() || "";
     window.AIRTABLE.loadData().then(atData => {
       if (atData && (atData.personas.length > 0 || atData.entities.length > 0)) {
         setData(prev => mergeFromAirtable(atData, prev, prevLastLoad));
-        setAtSyncMsg({ type: "ok", text: "↓ " + atData.personas.length + " personas · " + atData.entities.length + " entidades recibidas de Airtable" });
+        setAtSyncMsg({ type: "ok", text: "↓ Airtable: " + atData.personas.length + " personas · " + atData.entities.length + " entidades" });
       } else if (atData) {
-        setAtSyncMsg({ type: "warn", text: "Airtable vacío — haz 'Sincronizar todo' desde la MacBook primero" });
+        setAtSyncMsg({ type: "warn", text: "⚠ Airtable vacío — haz 'Sincronizar todo' desde la MacBook primero" });
+      } else {
+        setAtSyncMsg({ type: "err", text: "✗ No se pudo leer Airtable — revisa conexión" });
       }
     }).catch(e => {
-      setAtSyncMsg({ type: "err", text: "Error Airtable: " + e.message });
+      setAtSyncMsg({ type: "err", text: "✗ Error Airtable: " + e.message });
       console.warn("syncFromAirtable error:", e);
+    }).finally(() => setAtSyncing(false));
+  };
+
+  const forcePullFromAirtable = () => {
+    setAtSyncing(true);
+    setAtSyncMsg(null);
+    window.AIRTABLE.loadData().then(atData => {
+      if (atData && (atData.personas.length > 0 || atData.entities.length > 0)) {
+        setData(prev => ({
+          ...prev,
+          personas: [
+            ...atData.personas,
+            ...prev.personas.filter(p => !atData.personas.some(a => a.id === p.id)),
+          ],
+          entities: [
+            ...atData.entities,
+            ...prev.entities.filter(e => !atData.entities.some(a => a.id === e.id)),
+          ],
+        }));
+        setAtSyncMsg({ type: "ok", text: "✓ Recibido: " + atData.personas.length + " personas · " + atData.entities.length + " entidades" });
+      } else if (atData) {
+        setAtSyncMsg({ type: "warn", text: "⚠ Airtable no tiene datos — primero sincroniza desde la MacBook" });
+      } else {
+        setAtSyncMsg({ type: "err", text: "✗ No se pudo conectar a Airtable" });
+      }
+    }).catch(e => {
+      setAtSyncMsg({ type: "err", text: "✗ Error: " + e.message });
     }).finally(() => setAtSyncing(false));
   };
 
@@ -1349,6 +1386,7 @@ const App = () => {
           onClose={() => setModal(null)}
           onLogout={() => { clearSession(); sessionStorage.removeItem(window.CryptoUtils.SESSION_CRYPTO_KEY || "promeza_sk"); setUserEmail(null); }}
           onRestoreData={setData}
+          onForcePull={forcePullFromAirtable}
         />
       )}
       {modal === "edit-person" && editingId && (() => {
