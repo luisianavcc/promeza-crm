@@ -399,7 +399,10 @@ window.AIRTABLE = (function () {
       const entities = eRecords
         .filter(r => r.fields["CRM_ID"] || r.fields["_data"])
         .map(parseEntityRecord);
-      return { personas, entities };
+      // Deduplicate by CRM_ID (keep last, which is the most recently written record)
+      const pMap = new Map(); personas.forEach(p => pMap.set(p.id, p));
+      const eMap = new Map(); entities.forEach(e => eMap.set(e.id, e));
+      return { personas: [...pMap.values()], entities: [...eMap.values()] };
     } catch (err) {
       console.warn("Airtable loadData error:", err);
       return null;
@@ -441,16 +444,27 @@ window.AIRTABLE = (function () {
     delete p._atId;
     const url = "https://api.airtable.com/v0/" + cfg.baseId + "/" + encodeURIComponent(table);
     const tryFields = (withData) => ({ ...humanFields, ...(withData ? { "_data": JSON.stringify(p) } : {}) });
+
+    // Resolve Airtable row ID: use stored _atId or look up by CRM_ID to prevent duplicates
+    let atId = persona._atId;
+    if (!atId) {
+      try {
+        const q = url + "?filterByFormula=" + encodeURIComponent('{CRM_ID}="' + persona.id + '"');
+        const found = await req("GET", q, null, cfg.pat);
+        if (found.records && found.records.length > 0) atId = found.records[0].id;
+      } catch {}
+    }
+
     try {
-      if (persona._atId) {
-        await req("PATCH", url, { records: [{ id: persona._atId, fields: tryFields(true) }] }, cfg.pat);
+      if (atId) {
+        await req("PATCH", url, { records: [{ id: atId, fields: tryFields(true) }] }, cfg.pat);
       } else {
         await req("POST", url, { records: [{ fields: tryFields(true) }] }, cfg.pat);
       }
     } catch {
       try {
-        if (persona._atId) {
-          await req("PATCH", url, { records: [{ id: persona._atId, fields: humanFields }] }, cfg.pat);
+        if (atId) {
+          await req("PATCH", url, { records: [{ id: atId, fields: humanFields }] }, cfg.pat);
         } else {
           await req("POST", url, { records: [{ fields: humanFields }] }, cfg.pat);
         }
@@ -489,16 +503,26 @@ window.AIRTABLE = (function () {
     delete e._atId;
     const url = "https://api.airtable.com/v0/" + cfg.baseId + "/" + encodeURIComponent(table);
     const tryFields = (withData) => ({ ...humanFields, ...(withData ? { "_data": JSON.stringify(e) } : {}) });
+
+    let atId = entity._atId;
+    if (!atId) {
+      try {
+        const q = url + "?filterByFormula=" + encodeURIComponent('{CRM_ID}="' + entity.id + '"');
+        const found = await req("GET", q, null, cfg.pat);
+        if (found.records && found.records.length > 0) atId = found.records[0].id;
+      } catch {}
+    }
+
     try {
-      if (entity._atId) {
-        await req("PATCH", url, { records: [{ id: entity._atId, fields: tryFields(true) }] }, cfg.pat);
+      if (atId) {
+        await req("PATCH", url, { records: [{ id: atId, fields: tryFields(true) }] }, cfg.pat);
       } else {
         await req("POST", url, { records: [{ fields: tryFields(true) }] }, cfg.pat);
       }
     } catch {
       try {
-        if (entity._atId) {
-          await req("PATCH", url, { records: [{ id: entity._atId, fields: humanFields }] }, cfg.pat);
+        if (atId) {
+          await req("PATCH", url, { records: [{ id: atId, fields: humanFields }] }, cfg.pat);
         } else {
           await req("POST", url, { records: [{ fields: humanFields }] }, cfg.pat);
         }

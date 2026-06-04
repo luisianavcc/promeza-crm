@@ -631,6 +631,28 @@ const App = () => {
     }).catch(console.error);
   }, [data, cryptoKey]);
 
+  // Cross-tab sync: when another tab saves to localStorage, reload data here
+  useEffect(() => {
+    if (!cryptoKey || !dataReady) return;
+    const onStorage = async (e) => {
+      if (e.key !== "promeza_data_enc" || !e.newValue) return;
+      try {
+        const json = await window.CryptoUtils.decrypt(e.newValue, cryptoKey);
+        const parsed = JSON.parse(json);
+        setData(processLoadedData(parsed));
+      } catch {}
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [cryptoKey, dataReady]);
+
+  // Periodic Airtable sync every 60 seconds to pick up teammate changes
+  useEffect(() => {
+    if (!dataReady || !data) return;
+    const interval = setInterval(syncFromAirtable, 60000);
+    return () => clearInterval(interval);
+  }, [dataReady]);
+
   // Auto-logout on inactivity (1 hour)
   const INACTIVITY_MS = 60 * 60 * 1000;
   useEffect(() => {
